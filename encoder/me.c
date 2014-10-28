@@ -248,7 +248,7 @@ void x264_me_search_ref( x264_t *h, x264_me_t *m, int16_t (*mvc)[2], int i_mvc, 
     }
     COST_MV( 0, 0 );
 
-    switch( h->mb.i_me_method )
+    switch( h->mb.i_me_method ) // ME的搜索方式
     {
     case X264_ME_DIA:
         /* diamond search, radius 1 */
@@ -272,7 +272,7 @@ void x264_me_search_ref( x264_t *h, x264_me_t *m, int16_t (*mvc)[2], int i_mvc, 
         bcost >>= 4;
         break;
 
-    case X264_ME_HEX:
+    case X264_ME_HEX: // 六边形搜索
 me_hex2:
         /* hexagon search, radius 2 */
 #if 0

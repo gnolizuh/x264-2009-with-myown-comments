@@ -1167,12 +1167,12 @@ static void x264_intra_rd_refine( x264_t *h, x264_mb_analysis_t *a )
     (m)->p_fenc[2] = &(src)[2][((xoff)>>1)+((yoff)>>1)*FENC_STRIDE];
 
 #define LOAD_HPELS(m, src, list, ref, xoff, yoff) \
-    (m)->p_fref[0] = &(src)[0][(xoff)+(yoff)*(m)->i_stride[0]]; \
-    (m)->p_fref[1] = &(src)[1][(xoff)+(yoff)*(m)->i_stride[0]]; \
-    (m)->p_fref[2] = &(src)[2][(xoff)+(yoff)*(m)->i_stride[0]]; \
-    (m)->p_fref[3] = &(src)[3][(xoff)+(yoff)*(m)->i_stride[0]]; \
-    (m)->p_fref[4] = &(src)[4][((xoff)>>1)+((yoff)>>1)*(m)->i_stride[1]]; \
-    (m)->p_fref[5] = &(src)[5][((xoff)>>1)+((yoff)>>1)*(m)->i_stride[1]]; \
+    (m)->p_fref[0]/* 原像素平面 */ = &(src)[0][(xoff)+(yoff)*(m)->i_stride[0]]; \
+    (m)->p_fref[1]/* 水平半像素平面 */ = &(src)[1][(xoff)+(yoff)*(m)->i_stride[0]]; \
+    (m)->p_fref[2]/* 垂直半像素平面 */ = &(src)[2][(xoff)+(yoff)*(m)->i_stride[0]]; \
+    (m)->p_fref[3]/* 对角线半像素平面 */ = &(src)[3][(xoff)+(yoff)*(m)->i_stride[0]]; \
+    (m)->p_fref[4]/* 色度分量U像素平面 */ = &(src)[4][((xoff)>>1)+((yoff)>>1)*(m)->i_stride[1]]; \
+    (m)->p_fref[5]/* 色度分量V像素平面 */ = &(src)[5][((xoff)>>1)+((yoff)>>1)*(m)->i_stride[1]]; \
     (m)->integral = &h->mb.pic.p_integral[list][ref][(xoff)+(yoff)*(m)->i_stride[0]];
 
 #define REF_COST(list, ref) \
@@ -1182,7 +1182,7 @@ static void x264_mb_analyse_inter_p16x16( x264_t *h, x264_mb_analysis_t *a )
 {
     x264_me_t m;
     int i_ref, i_mvc;
-    ALIGNED_4( int16_t mvc[8][2] );
+    ALIGNED_4( int16_t mvc[8][2] ); // 所有MV的坐标
     int i_halfpel_thresh = INT_MAX;
     int *p_halfpel_thresh = h->mb.pic.i_fref[0]>1 ? &i_halfpel_thresh : NULL;
 
@@ -1192,18 +1192,18 @@ static void x264_mb_analyse_inter_p16x16( x264_t *h, x264_mb_analysis_t *a )
     LOAD_FENC( &m, h->mb.pic.p_fenc, 0, 0 );
 
     a->l0.me16x16.cost = INT_MAX;
-    for( i_ref = 0; i_ref < h->mb.pic.i_fref[0]; i_ref++ )
+    for( i_ref = 0; i_ref < h->mb.pic.i_fref[0]; i_ref++ ) // h->mb.pic.i_fref[0]: list0 参考帧的个数 
     {
-        const int i_ref_cost = REF_COST( 0, i_ref );
+        const int i_ref_cost = REF_COST( 0, i_ref ); // ref0中各个参考帧的cost
         i_halfpel_thresh -= i_ref_cost;
         m.i_ref_cost = i_ref_cost;
         m.i_ref = i_ref;
 
         /* search with ref */
-        LOAD_HPELS( &m, h->mb.pic.p_fref[0][i_ref], 0, i_ref, 0, 0 );
-        x264_mb_predict_mv_16x16( h, 0, i_ref, m.mvp );
-        x264_mb_predict_mv_ref16x16( h, 0, i_ref, mvc, &i_mvc );
-        x264_me_search_ref( h, &m, mvc, i_mvc, p_halfpel_thresh );
+        LOAD_HPELS( &m, h->mb.pic.p_fref[0][i_ref], 0, i_ref, 0, 0 ); // Load all pixels including sub-pixels
+        x264_mb_predict_mv_16x16( h, 0, i_ref, m.mvp );               // MV预测值从"当前宏块周边已编码的宏块"来决定
+        x264_mb_predict_mv_ref16x16( h, 0, i_ref, mvc, &i_mvc );      // 
+        x264_me_search_ref( h, &m, mvc, i_mvc, p_halfpel_thresh );    // 
 
         /* early termination
          * SSD threshold would probably be better than SATD */

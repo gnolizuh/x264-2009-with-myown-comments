@@ -1125,7 +1125,7 @@ static int  Encode_frame( x264_t *h, hnd_t hout, x264_picture_t *pic )
 
     for( i = 0; i < i_nal; i++ )
     {
-        i_nalu_size = p_write_nalu( hout, nal[i].p_payload, nal[i].i_payload ); // ????????NALU??????.
+        i_nalu_size = p_write_nalu( hout, nal[i].p_payload, nal[i].i_payload ); // 将编码生成的每个NALU写入到文件中.
         if( i_nalu_size < 0 )
             return -1;
         i_file += i_nalu_size;

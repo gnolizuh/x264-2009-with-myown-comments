@@ -975,10 +975,11 @@ void x264_frame_push_unused( x264_t *h, x264_frame_t *frame )
 {
     assert( frame->i_reference_count > 0 );
     frame->i_reference_count--;
-    if( frame->i_reference_count == 0 )
+    if( frame->i_reference_count == 0 ) // 如果没有其他线程正在使用这个frame的话
         x264_frame_push( h->frames.unused[frame->b_fdec], frame );
 }
 
+// b_fdec: 0 for fenc, 1 for fdec
 x264_frame_t *x264_frame_pop_unused( x264_t *h, int b_fdec )
 {
     x264_frame_t *frame;

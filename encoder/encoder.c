@@ -1256,10 +1256,10 @@ static inline int x264_reference_update( x264_t *h )
     }
 
     /* move frame in the buffer */
-    x264_frame_push( h->frames.reference, h->fdec );
-    if( h->frames.reference[h->frames.i_max_dpb] )
-        x264_frame_push_unused( h, x264_frame_shift( h->frames.reference ) );
-    h->fdec = x264_frame_pop_unused( h, 1 );
+    x264_frame_push( h->frames.reference, h->fdec ); // back insert
+    if( h->frames.reference[h->frames.i_max_dpb] ) // is references full?
+        x264_frame_push_unused( h, x264_frame_shift( h->frames.reference ) ); // pop last one, then move into unused
+    h->fdec = x264_frame_pop_unused( h, 1 ); // and pop unused
     if( !h->fdec )
         return -1;
     return 0;
@@ -1598,7 +1598,7 @@ static void *x264_slices_write( x264_t *h )
     /* init stats */
     memset( &h->stat.frame, 0, sizeof(h->stat.frame) );
     h->mb.b_reencode_mb = 0;
-    while( h->sh.i_first_mb < h->mb.i_mb_count )
+    while( h->sh.i_first_mb < h->mb.i_mb_count ) // h->mb.i_mb_count == ( width * height ) / ( 16 * 16 ) in pixels
     {
         h->sh.i_last_mb = h->mb.i_mb_count - 1;
         if( h->param.i_slice_max_mbs ) // MARK slice最多拥有i_slice_max_mbs个宏块
@@ -1673,7 +1673,7 @@ int     x264_encoder_encode( x264_t *h,
     }
 
     // ok to call this before encoding any frames, since the initial values of fdec have b_kept_as_ref=0
-    if( x264_reference_update( h ) )  // 将解码帧fdec放入参考列表中
+    if( x264_reference_update( h ) )  // 1.将已编码帧放入参考list中; 2.将参考list中最早的那个弹出作为当前重建帧fdec
         return -1;
     h->fdec->i_lines_completed = -1;
 
@@ -1685,20 +1685,20 @@ int     x264_encoder_encode( x264_t *h,
     if( pic_in != NULL )
     {
         /* 1: Copy the picture to a frame and move it to a buffer */
-        x264_frame_t *fenc = x264_frame_pop_unused( h, 0 );  // 弹出一个可用帧给编码帧fenc
+        x264_frame_t *fenc = x264_frame_pop_unused( h, 0 );  // 弹出一个可用帧给当前编码帧fenc
         if( !fenc )
             return -1;
 
-        if( x264_frame_copy_picture( h, fenc, pic_in ) < 0 )  // 将图片复制给编码帧fenc
+        if( x264_frame_copy_picture( h, fenc, pic_in ) < 0 )  // 将图片复制给当前编码帧fenc
             return -1;
 
         if( h->param.i_width != 16 * h->sps->i_mb_width ||
             h->param.i_height != 16 * h->sps->i_mb_height )
             x264_frame_expand_border_mod16( h, fenc );
 
-        fenc->i_frame = h->frames.i_input++;
+        fenc->i_frame = h->frames.i_input++; // pts
 
-        if( h->frames.b_have_lowres )
+        if( h->frames.b_have_lowres ) // 是否使用半像素帧间预测MV
             x264_frame_init_lowres( h, fenc );
 
         if( h->param.rc.b_mb_tree && h->param.rc.b_stat_read )
@@ -1710,7 +1710,7 @@ int     x264_encoder_encode( x264_t *h,
             x264_adaptive_quant_frame( h, fenc );
 
         /* 2: Place the frame into the queue for its slice type decision */
-        x264_lookahead_put_frame( h, fenc );
+        x264_lookahead_put_frame( h, fenc ); // push fenc into h->lookahead->next
 
         if( h->frames.i_input <= h->frames.i_delay + 1 - h->param.i_threads )
         {
@@ -1728,7 +1728,7 @@ int     x264_encoder_encode( x264_t *h,
 
     /* 3: The picture is analyzed in the lookahead */
     if( !h->frames.current[0] )
-        x264_lookahead_get_frames( h ); // MARK 确定frame是IDR/I/P/B帧
+        x264_lookahead_get_frames( h ); // 1.current此时为fenc; 2.确定frame是IDR/I/P/B帧
 
     if( !h->frames.current[0] && x264_lookahead_is_empty( h ) )
         return x264_encoder_frame_end( thread_oldest, thread_current, pp_nal, pi_nal, pic_out );
@@ -1790,7 +1790,7 @@ int     x264_encoder_encode( x264_t *h,
     h->fdec->i_type = h->fenc->i_type;
     h->fdec->i_frame = h->fenc->i_frame;
     h->fenc->b_kept_as_ref =
-    h->fdec->b_kept_as_ref = i_nal_ref_idc != NAL_PRIORITY_DISPOSABLE && h->param.i_keyint_max > 1;
+    h->fdec->b_kept_as_ref = i_nal_ref_idc != NAL_PRIORITY_DISPOSABLE && h->param.i_keyint_max > 1; // 如果是B-frame或者GOP==1, 那么此frame用完即丢弃
 
 
 

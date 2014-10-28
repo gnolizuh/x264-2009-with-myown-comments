@@ -107,33 +107,36 @@ median:
         goto median;
 }
 
+// 使用{当前帧的已编码宏块}来预测MV; 注意是mb.cache, 它里面保存的是当前宏块周边已编码的像素(luma, chroma)
 void x264_mb_predict_mv_16x16( x264_t *h, int i_list, int i_ref, int16_t mvp[2] )
 {
-    int     i_refa = h->mb.cache.ref[i_list][X264_SCAN8_0 - 1];
-    int16_t *mv_a  = h->mb.cache.mv[i_list][X264_SCAN8_0 - 1];
-    int     i_refb = h->mb.cache.ref[i_list][X264_SCAN8_0 - 8];
-    int16_t *mv_b  = h->mb.cache.mv[i_list][X264_SCAN8_0 - 8];
-    int     i_refc = h->mb.cache.ref[i_list][X264_SCAN8_0 - 8 + 4];
-    int16_t *mv_c  = h->mb.cache.mv[i_list][X264_SCAN8_0 - 8 + 4];
+	// 针对4x4 block
+    int     i_refa = h->mb.cache.ref[i_list][X264_SCAN8_0 - 1];     // LEFT宏块的序号(其实只取了一个LEFT宏块的像素)
+    int16_t *mv_a  = h->mb.cache.mv[i_list][X264_SCAN8_0 - 1];      // LEFT宏块的MV
+    int     i_refb = h->mb.cache.ref[i_list][X264_SCAN8_0 - 8];     // TOP宏块的序号
+    int16_t *mv_b  = h->mb.cache.mv[i_list][X264_SCAN8_0 - 8];      // TOP宏块的MV
+    int     i_refc = h->mb.cache.ref[i_list][X264_SCAN8_0 - 8 + 4]; // LEFT色度宏块的序号
+    int16_t *mv_c  = h->mb.cache.mv[i_list][X264_SCAN8_0 - 8 + 4];  // LEFT色度宏块的MV
 
     int i_count = 0;
 
-    if( i_refc == -2 )
+    if( i_refc == -2 ) // 如果LEFT色度宏块不存在, 则用TOP-LEFT宏块代替
     {
-        i_refc = h->mb.cache.ref[i_list][X264_SCAN8_0 - 8 - 1];
-        mv_c   = h->mb.cache.mv[i_list][X264_SCAN8_0 - 8 - 1];
+        i_refc = h->mb.cache.ref[i_list][X264_SCAN8_0 - 8 - 1]; // TOP-LEFT宏块的序号 
+        mv_c   = h->mb.cache.mv[i_list][X264_SCAN8_0 - 8 - 1];  // TOP-LEFT宏块的MV
     }
 
+	// 统计当前宏块所参考的参考帧序号与邻块所参考的参考帧序号相同数
     if( i_refa == i_ref ) i_count++;
     if( i_refb == i_ref ) i_count++;
     if( i_refc == i_ref ) i_count++;
 
-    if( i_count > 1 )
+    if( i_count > 1 ) // 相同数大于1时，直接取这三个邻块的运动矢量的中值作为预测运动矢量
     {
 median:
         x264_median_mv( mvp, mv_a, mv_b, mv_c );
     }
-    else if( i_count == 1 )
+    else if( i_count == 1 ) // 只有一个邻块与其相同时，预测运动矢量设置为该邻块的运动矢量
     {
         if( i_refa == i_ref )
             *(uint32_t*)mvp = *(uint32_t*)mv_a;
@@ -142,9 +145,9 @@ median:
         else
             *(uint32_t*)mvp = *(uint32_t*)mv_c;
     }
-    else if( i_refb == -2 && i_refc == -2 && i_refa != -2 )
+    else if( i_refb == -2 && i_refc == -2 && i_refa != -2 ) // 只有a块是存在的，则预测运动矢量设置为该邻块的运动矢量
         *(uint32_t*)mvp = *(uint32_t*)mv_a;
-    else
+    else // b块和c块至少有一个是存在的，则取这三个邻块的运动矢量的中值作为预测运动矢量
         goto median;
 }
 
@@ -378,7 +381,7 @@ void x264_mb_load_mv_direct8x8( x264_t *h, int idx )
 /* This just improves encoder performance, it's not part of the spec */
 void x264_mb_predict_mv_ref16x16( x264_t *h, int i_list, int i_ref, int16_t mvc[9][2], int *i_mvc )
 {
-    int16_t (*mvr)[2] = h->mb.mvr[i_list][i_ref];
+    int16_t (*mvr)[2] = h->mb.mvr[i_list][i_ref];  // 
     int i = 0;
 
 #define SET_MVP(mvp) { \
@@ -403,10 +406,10 @@ void x264_mb_predict_mv_ref16x16( x264_t *h, int i_list, int i_ref, int16_t mvc[
     /* spatial predictors */
     if( h->mb.i_neighbour & MB_LEFT )
     {
-        int i_mb_l = h->mb.i_mb_xy - 1;
+        int i_mb_l = h->mb.i_mb_xy - 1; // 取得LEFT宏块的索引
         /* skip MBs didn't go through the whole search process, so mvr is undefined */
         if( !IS_SKIP( h->mb.type[i_mb_l] ) )
-            SET_MVP( mvr[i_mb_l] );
+            SET_MVP( mvr[i_mb_l] ); // 保存LEFT宏块在参考帧中引用的对应宏块的MV
     }
     if( h->mb.i_neighbour & MB_TOP )
     {
