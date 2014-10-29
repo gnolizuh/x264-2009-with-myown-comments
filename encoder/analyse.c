@@ -1201,8 +1201,8 @@ static void x264_mb_analyse_inter_p16x16( x264_t *h, x264_mb_analysis_t *a )
 
         /* search with ref */
         LOAD_HPELS( &m, h->mb.pic.p_fref[0][i_ref], 0, i_ref, 0, 0 ); // Load all pixels including sub-pixels
-        x264_mb_predict_mv_16x16( h, 0, i_ref, m.mvp );               // MV预测值从"当前宏块周边已编码的宏块"来决定
-        x264_mb_predict_mv_ref16x16( h, 0, i_ref, mvc, &i_mvc );      // 
+        x264_mb_predict_mv_16x16( h, 0, i_ref, m.mvp );               // MVP由"当前宏块周边已编码的宏块"来决定
+        x264_mb_predict_mv_ref16x16( h, 0, i_ref, mvc, &i_mvc );      // MVC由相应于此宏块周围的参考帧宏块, 将他们的MV放入MVC
         x264_me_search_ref( h, &m, mvc, i_mvc, p_halfpel_thresh );    // 
 
         /* early termination

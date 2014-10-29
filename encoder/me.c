@@ -67,7 +67,7 @@ static void refine_subpel( x264_t *h, x264_me_t *m, int hpel_iters, int qpel_ite
 #define COST_MV_HPEL( mx, my ) \
 { \
     int stride2 = 16; \
-    uint8_t *src = h->mc.get_ref( pix, &stride2, m->p_fref, stride, mx, my, bw, bh ); \
+    uint8_t *src = h->mc.get_ref( pix/*uint8_t [16x16]*/, &stride2/*16*/, m->p_fref, stride, mx, my, bw, bh ); \
     int cost = h->pixf.fpelcmp[i_pixel]( p_fenc, FENC_STRIDE, src, stride2 ) \
              + p_cost_mvx[ mx ] + p_cost_mvy[ my ]; \
     COPY3_IF_LT( bpred_cost, cost, bpred_mx, mx, bpred_my, my ); \
@@ -189,6 +189,7 @@ void x264_me_search_ref( x264_t *h, x264_me_t *m, int16_t (*mvc)[2], int i_mvc, 
     int dir;
     int costs[16];
 
+	// x,y的搜索边界
     int mv_x_min = h->mb.mv_min_fpel[0];
     int mv_y_min = h->mb.mv_min_fpel[1];
     int mv_x_max = h->mb.mv_max_fpel[0];
@@ -209,10 +210,10 @@ void x264_me_search_ref( x264_t *h, x264_me_t *m, int16_t (*mvc)[2], int i_mvc, 
     if( h->mb.i_subpel_refine >= 3 )
     {
         uint32_t bmv = pack16to32_mask(bmx,bmy);
-        COST_MV_HPEL( bmx, bmy );
-        for( i = 0; i < i_mvc; i++ )
+        COST_MV_HPEL( bmx, bmy );    // 以MVP偏移先做一次帧内预测
+        for( i = 0; i < i_mvc; i++ ) // 对此宏块相应在参考帧周边的宏块MVs进行预测
         {
-            if( *(uint32_t*)mvc[i] && (bmv - *(uint32_t*)mvc[i]) )
+            if( *(uint32_t*)mvc[i] && (bmv - *(uint32_t*)mvc[i]) ) // mvc[i] 和 mvp不是同一个MV
             {
                 int mx = x264_clip3( mvc[i][0], mv_x_min*4, mv_x_max*4 );
                 int my = x264_clip3( mvc[i][1], mv_y_min*4, mv_y_max*4 );
@@ -221,7 +222,7 @@ void x264_me_search_ref( x264_t *h, x264_me_t *m, int16_t (*mvc)[2], int i_mvc, 
         }
         bmx = ( bpred_mx + 2 ) >> 2;
         bmy = ( bpred_my + 2 ) >> 2;
-        COST_MV( bmx, bmy );
+        COST_MV( bmx, bmy ); // 对上面的最佳(x,y+2)>>2再做一次预测
     }
     else
     {
@@ -296,7 +297,7 @@ me_hex2:
         /* hexagon */
         COST_MV_X3_DIR( -2,0, -1, 2,  1, 2, costs   );
         COST_MV_X3_DIR(  2,0,  1,-2, -1,-2, costs+3 );
-        bcost <<= 3;
+        bcost <<= 3; // 空出前三位: 为防止选择不到最佳点??
         COPY1_IF_LT( bcost, (costs[0]<<3)+2 );
         COPY1_IF_LT( bcost, (costs[1]<<3)+3 );
         COPY1_IF_LT( bcost, (costs[2]<<3)+4 );
@@ -306,16 +307,16 @@ me_hex2:
 
         if( bcost&7 )
         {
-            dir = (bcost&7)-2;
-            bmx += hex2[dir+1][0];
-            bmy += hex2[dir+1][1];
+            dir = (bcost&7)-2;     // (costs[0]<<3)+2; 获得选定点的偏移位置
+            bmx += hex2[dir+1][0]; // 选定点的相对x坐标
+            bmy += hex2[dir+1][1]; // 选定点的相对y坐标
             /* half hexagon, not overlapping the previous iteration */
             for( i = 1; i < i_me_range/2 && CHECK_MVRANGE(bmx, bmy); i++ )
             {
                 COST_MV_X3_DIR( hex2[dir+0][0], hex2[dir+0][1],
                                 hex2[dir+1][0], hex2[dir+1][1],
                                 hex2[dir+2][0], hex2[dir+2][1],
-                                costs );
+                                costs ); // 作dir位置逆时针的连续三个点的预测
                 bcost &= ~7;
                 COPY1_IF_LT( bcost, (costs[0]<<3)+1 );
                 COPY1_IF_LT( bcost, (costs[1]<<3)+2 );
@@ -714,7 +715,7 @@ me_hex2:
     {
         int hpel = subpel_iterations[h->mb.i_subpel_refine][2];
         int qpel = subpel_iterations[h->mb.i_subpel_refine][3];
-        refine_subpel( h, m, hpel, qpel, p_halfpel_thresh, 0 );
+        refine_subpel( h, m, hpel, qpel, p_halfpel_thresh, 0 );  // 半像素帧间预测
     }
 }
 #undef COST_MV

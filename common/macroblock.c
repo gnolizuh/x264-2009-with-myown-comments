@@ -107,7 +107,7 @@ median:
         goto median;
 }
 
-// 使用{当前帧的已编码宏块}来预测MV; 注意是mb.cache, 它里面保存的是当前宏块周边已编码的像素(luma, chroma)
+// 使用{当前帧的已编码宏块}来预测MV; 注意是mb.cache,它里面保存的是当前宏块周边已编码的像素(luma, chroma)
 void x264_mb_predict_mv_16x16( x264_t *h, int i_list, int i_ref, int16_t mvp[2] )
 {
 	// 针对4x4 block
@@ -115,12 +115,12 @@ void x264_mb_predict_mv_16x16( x264_t *h, int i_list, int i_ref, int16_t mvp[2] 
     int16_t *mv_a  = h->mb.cache.mv[i_list][X264_SCAN8_0 - 1];      // LEFT宏块的MV
     int     i_refb = h->mb.cache.ref[i_list][X264_SCAN8_0 - 8];     // TOP宏块的序号
     int16_t *mv_b  = h->mb.cache.mv[i_list][X264_SCAN8_0 - 8];      // TOP宏块的MV
-    int     i_refc = h->mb.cache.ref[i_list][X264_SCAN8_0 - 8 + 4]; // LEFT色度宏块的序号
-    int16_t *mv_c  = h->mb.cache.mv[i_list][X264_SCAN8_0 - 8 + 4];  // LEFT色度宏块的MV
+    int     i_refc = h->mb.cache.ref[i_list][X264_SCAN8_0 - 8 + 4]; // TOP-RIGHT宏块的序号
+    int16_t *mv_c  = h->mb.cache.mv[i_list][X264_SCAN8_0 - 8 + 4];  // TOP-RIGHT宏块的MV
 
     int i_count = 0;
 
-    if( i_refc == -2 ) // 如果LEFT色度宏块不存在, 则用TOP-LEFT宏块代替
+    if( i_refc == -2 ) // 如果TOP-RIGHT宏块不存在, 则用TOP-LEFT宏块代替
     {
         i_refc = h->mb.cache.ref[i_list][X264_SCAN8_0 - 8 - 1]; // TOP-LEFT宏块的序号 
         mv_c   = h->mb.cache.mv[i_list][X264_SCAN8_0 - 8 - 1];  // TOP-LEFT宏块的MV
@@ -131,12 +131,12 @@ void x264_mb_predict_mv_16x16( x264_t *h, int i_list, int i_ref, int16_t mvp[2] 
     if( i_refb == i_ref ) i_count++;
     if( i_refc == i_ref ) i_count++;
 
-    if( i_count > 1 ) // 相同数大于1时，直接取这三个邻块的运动矢量的中值作为预测运动矢量
+    if( i_count > 1 ) // 相同数大于1时,直接取这三个邻块的运动矢量的中值作为预测运动矢量
     {
 median:
         x264_median_mv( mvp, mv_a, mv_b, mv_c );
     }
-    else if( i_count == 1 ) // 只有一个邻块与其相同时，预测运动矢量设置为该邻块的运动矢量
+    else if( i_count == 1 ) // 只有一个邻块与其相同时,预测运动矢量设置为该邻块的运动矢量
     {
         if( i_refa == i_ref )
             *(uint32_t*)mvp = *(uint32_t*)mv_a;
@@ -145,9 +145,10 @@ median:
         else
             *(uint32_t*)mvp = *(uint32_t*)mv_c;
     }
-    else if( i_refb == -2 && i_refc == -2 && i_refa != -2 ) // 只有a块是存在的，则预测运动矢量设置为该邻块的运动矢量
+	// i_count == 0, 看看a,b,c是否参考帧序号不同
+    else if( i_refb == -2 && i_refc == -2 && i_refa != -2 ) // 只有a块是存在的,则预测运动矢量设置为该邻块的运动矢量,无论a块参考的是谁
         *(uint32_t*)mvp = *(uint32_t*)mv_a;
-    else // b块和c块至少有一个是存在的，则取这三个邻块的运动矢量的中值作为预测运动矢量
+    else // b块和c块至少有一个是存在的,则取这三个邻块的运动矢量的中值作为预测运动矢量
         goto median;
 }
 
