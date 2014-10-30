@@ -714,7 +714,7 @@ void x264_macroblock_encode( x264_t *h )
 
         /* Don't repeat motion compensation if it was already done in non-RD transform analysis */
         if( !h->mb.b_skip_mc )
-            x264_mb_mc( h );
+            x264_mb_mc( h ); // MC: 将块从参考帧中根据MV偏移到重建帧中
 
         if( h->mb.b_lossless )
         {
@@ -793,7 +793,7 @@ void x264_macroblock_encode( x264_t *h )
         else
         {
             ALIGNED_ARRAY_16( int16_t, dct4x4,[16],[4][4] );
-            h->dctf.sub16x16_dct( dct4x4, h->mb.pic.p_fenc[0], h->mb.pic.p_fdec[0] );
+            h->dctf.sub16x16_dct( dct4x4, h->mb.pic.p_fenc[0], h->mb.pic.p_fdec[0] ); // DCT变换编码
             h->nr_count[0] += h->mb.b_noise_reduction * 16;
 
             for( i8x8 = 0; i8x8 < 4; i8x8++ )
@@ -808,7 +808,7 @@ void x264_macroblock_encode( x264_t *h )
 
                     if( h->mb.b_noise_reduction )
                         h->quantf.denoise_dct( *dct4x4[idx], h->nr_residual_sum[0], h->nr_offset[0], 16 );
-                    nz = x264_quant_4x4( h, dct4x4[idx], i_qp, DCT_LUMA_4x4, 0, idx );
+                    nz = x264_quant_4x4( h, dct4x4[idx], i_qp, DCT_LUMA_4x4, 0, idx ); // QP量化处理
                     h->mb.cache.non_zero_count[x264_scan8[idx]] = nz;
 
                     if( nz )
@@ -875,7 +875,7 @@ void x264_macroblock_encode( x264_t *h )
 
 	/* CAVLC支持所有profiles */
 	/* CABAC不支持baseline profile */
-    if( h->param.b_cabac ) // 只有
+    if( h->param.b_cabac )
     {
         i_cbp_dc = h->mb.cache.non_zero_count[x264_scan8[24]]
                  | h->mb.cache.non_zero_count[x264_scan8[25]] << 1

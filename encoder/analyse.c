@@ -1200,7 +1200,7 @@ static void x264_mb_analyse_inter_p16x16( x264_t *h, x264_mb_analysis_t *a )
         m.i_ref = i_ref;
 
         /* search with ref */
-        LOAD_HPELS( &m, h->mb.pic.p_fref[0][i_ref], 0, i_ref, 0, 0 ); // Load all pixels including sub-pixels
+        LOAD_HPELS( &m, h->mb.pic.p_fref[0][i_ref], 0, i_ref, 0, 0 ); // 计算出1/2像素
         x264_mb_predict_mv_16x16( h, 0, i_ref, m.mvp );               // MVP由"当前宏块周边已编码的宏块"来决定
         x264_mb_predict_mv_ref16x16( h, 0, i_ref, mvc, &i_mvc );      // MVC由相应于此宏块周围的参考帧宏块, 将他们的MV放入MVC
         x264_me_search_ref( h, &m, mvc, i_mvc, p_halfpel_thresh );    // 
@@ -2418,7 +2418,7 @@ void x264_macroblock_analyse( x264_t *h )
             if( h->mb.i_type == P_SKIP )
                 return;
 
-            if( flags & X264_ANALYSE_PSUB16x16 )
+            if( flags & X264_ANALYSE_PSUB16x16 ) // 要启用就需要设置profile
             {
                 if( h->param.analyse.b_mixed_references )
                     x264_mb_analyse_inter_p8x8_mixed_ref( h, &analysis );
@@ -2439,7 +2439,7 @@ void x264_macroblock_analyse( x264_t *h )
                 i_cost = analysis.l0.i_cost8x8;
 
                 /* Do sub 8x8 */
-                if( flags & X264_ANALYSE_PSUB8x8 )
+                if( flags & X264_ANALYSE_PSUB8x8 ) // 要启用就需要设置profile
                 {
                     for( i = 0; i < 4; i++ )
                     {
@@ -2583,7 +2583,7 @@ void x264_macroblock_analyse( x264_t *h )
 
             h->mb.i_type = i_type;
 
-            if( analysis.i_mbrd >= 2 && h->mb.i_type != I_PCM )
+            if( analysis.i_mbrd >= 2 && h->mb.i_type != I_PCM ) // mbrd ??
             {
                 if( IS_INTRA( h->mb.i_type ) )
                 {

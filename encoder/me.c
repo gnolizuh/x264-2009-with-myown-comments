@@ -64,10 +64,17 @@ static void refine_subpel( x264_t *h, x264_me_t *m, int hpel_iters, int qpel_ite
     COPY3_IF_LT( bcost, cost, bmx, mx, bmy, my );\
 }
 
+//@ h->mc.get_ref():
+//@ 1. 获取MV偏移后的坐标
+//    @ @ @ y
+//    @
+//    @
+//    x
+//@ 2. 如果坐标在1/2像素点上, 则此16x16宏块全部都是1/2像素点; 对1/4像素同理
 #define COST_MV_HPEL( mx, my ) \
 { \
     int stride2 = 16; \
-    uint8_t *src = h->mc.get_ref( pix/*uint8_t [16x16]*/, &stride2/*16*/, m->p_fref, stride, mx, my, bw, bh ); \
+    uint8_t *src = h->mc.get_ref( pix, &stride2, m->p_fref, stride, mx, my, bw, bh ); \
     int cost = h->pixf.fpelcmp[i_pixel]( p_fenc, FENC_STRIDE, src, stride2 ) \
              + p_cost_mvx[ mx ] + p_cost_mvy[ my ]; \
     COPY3_IF_LT( bpred_cost, cost, bpred_mx, mx, bpred_my, my ); \
@@ -202,7 +209,7 @@ void x264_me_search_ref( x264_t *h, x264_me_t *m, int16_t (*mvc)[2], int i_mvc, 
 
     bmx = x264_clip3( m->mvp[0], mv_x_min*4, mv_x_max*4 );
     bmy = x264_clip3( m->mvp[1], mv_y_min*4, mv_y_max*4 );
-    pmx = ( bmx + 2 ) >> 2;
+    pmx = ( bmx + 2 ) >> 2; // 变为整像素?
     pmy = ( bmy + 2 ) >> 2;
     bcost = COST_MAX;
 
@@ -220,9 +227,9 @@ void x264_me_search_ref( x264_t *h, x264_me_t *m, int16_t (*mvc)[2], int i_mvc, 
                 COST_MV_HPEL( mx, my );
             }
         }
-        bmx = ( bpred_mx + 2 ) >> 2;
+        bmx = ( bpred_mx + 2 ) >> 2; // 变为整像素?
         bmy = ( bpred_my + 2 ) >> 2;
-        COST_MV( bmx, bmy ); // 对上面的最佳(x,y+2)>>2再做一次预测
+        COST_MV( bmx, bmy ); // 对上面的最整像素再做一次预测
     }
     else
     {
@@ -294,34 +301,37 @@ me_hex2:
 #else
         /* equivalent to the above, but eliminates duplicate candidates */
 
+		// 进行六边形搜索, 注意 --> 半径r为2
         /* hexagon */
         COST_MV_X3_DIR( -2,0, -1, 2,  1, 2, costs   );
         COST_MV_X3_DIR(  2,0,  1,-2, -1,-2, costs+3 );
-        bcost <<= 3; // 空出前三位: 为防止选择不到最佳点??
-        COPY1_IF_LT( bcost, (costs[0]<<3)+2 );
-        COPY1_IF_LT( bcost, (costs[1]<<3)+3 );
-        COPY1_IF_LT( bcost, (costs[2]<<3)+4 );
-        COPY1_IF_LT( bcost, (costs[3]<<3)+5 );
-        COPY1_IF_LT( bcost, (costs[4]<<3)+6 );
-        COPY1_IF_LT( bcost, (costs[5]<<3)+7 );
+        bcost <<= 3; // 空出前三位作为六边形各个点的索引
+        COPY1_IF_LT( bcost, (costs[0]<<3)+2 ); // p(-2,0)
+        COPY1_IF_LT( bcost, (costs[1]<<3)+3 ); // p(-1,2)
+        COPY1_IF_LT( bcost, (costs[2]<<3)+4 ); // p(1,2)
+        COPY1_IF_LT( bcost, (costs[3]<<3)+5 ); // p(2,0)
+        COPY1_IF_LT( bcost, (costs[4]<<3)+6 ); // p(1,-2)
+        COPY1_IF_LT( bcost, (costs[5]<<3)+7 ); // p(-1,-2)
 
         if( bcost&7 )
         {
-            dir = (bcost&7)-2;     // (costs[0]<<3)+2; 获得选定点的偏移位置
+            dir = (bcost&7)-2;     // 获得选定点的偏移位置
+			// 仔细看下面的dir+1, 因为dir=0时对应的应该是(-2,0), 从上面的两个COST_MV_X3_DIR函数就能看到, 而(-2,0)在hex2里的索引是(0+1)
             bmx += hex2[dir+1][0]; // 选定点的相对x坐标
             bmy += hex2[dir+1][1]; // 选定点的相对y坐标
             /* half hexagon, not overlapping the previous iteration */
             for( i = 1; i < i_me_range/2 && CHECK_MVRANGE(bmx, bmy); i++ )
             {
+				// 这里只选择了三个点, 是为了避免和六边形的搜索区域重叠
                 COST_MV_X3_DIR( hex2[dir+0][0], hex2[dir+0][1],
                                 hex2[dir+1][0], hex2[dir+1][1],
                                 hex2[dir+2][0], hex2[dir+2][1],
-                                costs ); // 作dir位置逆时针的连续三个点的预测
+                                costs ); // 以之前选定的再进行预测
                 bcost &= ~7;
                 COPY1_IF_LT( bcost, (costs[0]<<3)+1 );
                 COPY1_IF_LT( bcost, (costs[1]<<3)+2 );
                 COPY1_IF_LT( bcost, (costs[2]<<3)+3 );
-                if( !(bcost&7) )
+                if( !(bcost&7) ) // 是否找到了新的最佳点
                     break;
                 dir += (bcost&7)-2;
                 dir = mod6m1[dir+1];
@@ -331,6 +341,7 @@ me_hex2:
         }
         bcost >>= 3;
 #endif
+		// 对六边形搜索后选中的最佳点再进行一次正方形搜索; 注意--> 半径更小了, r为1
         /* square refine */
         dir = 0;
         COST_MV_X4_DIR(  0,-1,  0,1, -1,0, 1,0, costs );
@@ -794,9 +805,10 @@ static void refine_subpel( x264_t *h, x264_me_t *m, int hpel_iters, int qpel_ite
     }
 
     /* halfpel diamond search */
+	// 半像素钻石搜索
     for( i = hpel_iters; i > 0; i-- )
     {
-        int omx = bmx, omy = bmy;
+        int omx = bmx, omy = bmy; // 这里应该是整像素, 虽然之前的搜索可能用到了subpel, 但最后还是近似成了整像素, 否则这里没法解释.(1/4subpel的1/4subpel像素?)
         int costs[4];
         int stride = 32; // candidates are either all hpel or all qpel, so one stride is enough
         uint8_t *src0, *src1, *src2, *src3;
@@ -816,7 +828,7 @@ static void refine_subpel( x264_t *h, x264_me_t *m, int hpel_iters, int qpel_ite
     if( !b_refine_qpel )
     {
         bcost = COST_MAX;
-        COST_MV_SATD( bmx, bmy, -1 );
+        COST_MV_SATD( bmx, bmy, -1 ); // 色度ME
     }
 
     /* early termination when examining multiple reference frames */
@@ -835,6 +847,7 @@ static void refine_subpel( x264_t *h, x264_me_t *m, int hpel_iters, int qpel_ite
     }
 
     /* quarterpel diamond search */
+	// 1/4像素钻石搜索
     bdir = -1;
     for( i = qpel_iters; i > 0; i-- )
     {

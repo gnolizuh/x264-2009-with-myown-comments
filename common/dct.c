@@ -128,7 +128,7 @@ static void sub4x4_dct( int16_t dct[4][4], uint8_t *pix1, uint8_t *pix2 )
     int16_t tmp[4][4];
     int i;
 
-    pixel_sub_wxh( (int16_t*)d, 4, pix1, FENC_STRIDE, pix2, FDEC_STRIDE );
+    pixel_sub_wxh( (int16_t*)d, 4, pix1, FENC_STRIDE, pix2, FDEC_STRIDE ); // º∆À„residual
 
     for( i = 0; i < 4; i++ )
     {

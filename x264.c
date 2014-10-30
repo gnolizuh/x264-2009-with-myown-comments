@@ -101,10 +101,10 @@ int main( int argc, char **argv )
     _setmode(_fileno(stdout), _O_BINARY);
 #endif
 
-    x264_param_default( &param );
+    x264_param_default( &param ); // 以默认值初始化参数
 
     /* Parse command line */
-    if( Parse( argc, argv, &param, &opt ) < 0 )
+    if( Parse( argc, argv, &param, &opt ) < 0 ) // 从命令行中读取对应参数
         return -1;
 
     /* Control-C handler */

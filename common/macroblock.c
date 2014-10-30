@@ -475,7 +475,7 @@ static inline void x264_mb_mc_0xywh( x264_t *h, int x, int y, int width, int hei
 
     h->mc.mc_luma( &h->mb.pic.p_fdec[0][4*y*FDEC_STRIDE+4*x], FDEC_STRIDE,
                    h->mb.pic.p_fref[0][i_ref], h->mb.pic.i_stride[0],
-                   mvx + 4*4*x, mvy + 4*4*y, 4*width, 4*height );
+                   mvx + 4*4*x, mvy + 4*4*y, 4*width, 4*height ); // 将块从参考帧中根据MV偏移到重建帧中
 
     // chroma is offset if MCing from a field of opposite parity
     if( h->mb.b_interlaced & i_ref )

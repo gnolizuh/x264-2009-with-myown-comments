@@ -186,7 +186,7 @@ static uint8_t *get_ref( uint8_t *dst,   int *i_dst_stride,
                          int mvx, int mvy,
                          int i_width, int i_height )
 {
-    int qpel_idx = ((mvy&3)<<2) + (mvx&3);
+    int qpel_idx = ((mvy&3)<<2) + (mvx&3);        // mvx, mvy前2比特表示在1/4像素坐标轴上的坐标; 其他表示在整个frame的行和列数
     int offset = (mvy>>2)*i_src_stride + (mvx>>2);
     uint8_t *src1 = src[hpel_ref0[qpel_idx]] + offset + ((mvy&3) == 3) * i_src_stride;
 
@@ -194,7 +194,7 @@ static uint8_t *get_ref( uint8_t *dst,   int *i_dst_stride,
     {
         uint8_t *src2 = src[hpel_ref1[qpel_idx]] + offset + ((mvx&3) == 3);
         pixel_avg( dst, *i_dst_stride, src1, i_src_stride,
-                   src2, i_src_stride, i_width, i_height );
+                   src2, i_src_stride, i_width, i_height ); // 1/4像素插值
         return dst;
     }
     else

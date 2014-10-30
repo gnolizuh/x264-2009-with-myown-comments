@@ -551,7 +551,7 @@ struct x264_t
 
             /* pointer over mb of the references */
             int i_fref[2];
-            uint8_t *p_fref[2][32][4+2]; /* last: lN, lH, lV, lHV, cU, cV */
+            uint8_t *p_fref[2][32][4+2]; /*[2]: list0/1; [32]: 参考帧最大数目; [4+2]: lN, lH, lV, lHV, cU, cV */
             uint16_t *p_integral[2][16];
 
             /* fref stride */
@@ -568,6 +568,7 @@ struct x264_t
             uint8_t non_zero_count[X264_SCAN8_SIZE];
 
             /* -1 if unused, -2 if unavailable */
+			// [2]: for list0 and list1
             ALIGNED_4( int8_t ref[2][X264_SCAN8_SIZE] );
 
             /* 0 if not available */
