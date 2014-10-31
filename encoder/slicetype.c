@@ -907,7 +907,7 @@ void x264_slicetype_decide( x264_t *h )
         frm = h->lookahead->next.list[bframes];
 
         /* Limit GOP size */
-        if( frm->i_frame - h->lookahead->i_last_idr >= h->param.i_keyint_max )
+        if( frm->i_frame - h->lookahead->i_last_idr >= h->param.i_keyint_max ) // 如果达到GOP产生IDR帧的条件
         {
             if( frm->i_type == X264_TYPE_AUTO )
                 frm->i_type = X264_TYPE_IDR;
@@ -943,7 +943,7 @@ void x264_slicetype_decide( x264_t *h )
 
     if( bframes )
         h->lookahead->next.list[bframes-1]->b_last_minigop_bframe = 1;
-    h->lookahead->next.list[bframes]->i_bframes = bframes;
+    h->lookahead->next.list[bframes]->i_bframes = bframes; // 此帧前面有多少个B帧
 
     /* calculate the frame costs ahead of time for x264_rc_analyse_slice while we still have lowres */
     if( h->param.rc.i_rc_method != X264_RC_CQP )

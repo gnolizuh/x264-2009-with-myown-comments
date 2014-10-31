@@ -374,7 +374,7 @@ struct x264_t
 
     struct
     {
-        /* Frames to be encoded (whose types have been decided) */
+        /* Frames(可能不止一个帧) to be encoded (whose types have been decided) */
         x264_frame_t **current;
         /* Unused frames: 0 = fenc, 1 = fdec */
         x264_frame_t **unused[2];

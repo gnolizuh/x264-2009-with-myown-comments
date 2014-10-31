@@ -1256,10 +1256,10 @@ static inline int x264_reference_update( x264_t *h )
     }
 
     /* move frame in the buffer */
-    x264_frame_push( h->frames.reference, h->fdec ); // back insert
-    if( h->frames.reference[h->frames.i_max_dpb] ) // is references full?
-        x264_frame_push_unused( h, x264_frame_shift( h->frames.reference ) ); // pop last one, then move into unused
-    h->fdec = x264_frame_pop_unused( h, 1 ); // and pop unused
+    x264_frame_push( h->frames.reference, h->fdec ); // 将上个编码的重建帧保存为参考帧
+    if( h->frames.reference[h->frames.i_max_dpb] )   // 参考帧是否已满
+        x264_frame_push_unused( h, x264_frame_shift( h->frames.reference ) ); // 弹出最'旧'的参考帧
+    h->fdec = x264_frame_pop_unused( h, 1 );         // 初始化重建帧
     if( !h->fdec )
         return -1;
     return 0;
@@ -1613,7 +1613,7 @@ static void *x264_slices_write( x264_t *h )
         }
         h->sh.i_last_mb = X264_MIN( h->sh.i_last_mb, h->mb.i_mb_count - 1 );
 		// 对每个slice里的macroblock: predict(intra/inter) -> transform -> quant
-        if( x264_stack_align( x264_slice_write, h ) )
+        if( x264_stack_align( x264_slice_write, h ) ) // encode a slice.
             return (void *)-1;
         h->sh.i_first_mb = h->sh.i_last_mb + 1;
     }
@@ -1672,8 +1672,9 @@ int     x264_encoder_encode( x264_t *h,
         thread_oldest  = h;
     }
 
-    // ok to call this before encoding any frames, since the initial values of fdec have b_kept_as_ref=0
-    if( x264_reference_update( h ) )  // 1.将已编码帧放入参考list中; 2.将参考list中最早的那个弹出作为当前重建帧fdec
+	// 1. 重建帧放入参考帧列表
+	// 2. 初始化重建帧
+    if( x264_reference_update( h ) )
         return -1;
     h->fdec->i_lines_completed = -1;
 
@@ -1685,18 +1686,18 @@ int     x264_encoder_encode( x264_t *h,
     if( pic_in != NULL )
     {
         /* 1: Copy the picture to a frame and move it to a buffer */
-        x264_frame_t *fenc = x264_frame_pop_unused( h, 0 );  // 弹出一个可用帧给当前编码帧fenc
+        x264_frame_t *fenc = x264_frame_pop_unused( h, 0 );   // 初始化编码帧
         if( !fenc )
             return -1;
 
-        if( x264_frame_copy_picture( h, fenc, pic_in ) < 0 )  // 将图片复制给当前编码帧fenc
+        if( x264_frame_copy_picture( h, fenc, pic_in ) < 0 )  // 当前图像拷贝到编码帧
             return -1;
 
         if( h->param.i_width != 16 * h->sps->i_mb_width ||
             h->param.i_height != 16 * h->sps->i_mb_height )
             x264_frame_expand_border_mod16( h, fenc );
 
-        fenc->i_frame = h->frames.i_input++; // pts
+        fenc->i_frame = h->frames.i_input++; // presentation sequence number
 
         if( h->frames.b_have_lowres ) // 是否使用半像素帧间预测MV
             x264_frame_init_lowres( h, fenc );
@@ -1710,7 +1711,10 @@ int     x264_encoder_encode( x264_t *h,
             x264_adaptive_quant_frame( h, fenc );
 
         /* 2: Place the frame into the queue for its slice type decision */
-        x264_lookahead_put_frame( h, fenc ); // push fenc into h->lookahead->next
+
+		// 1. 将当前编码帧插入h->lookahead->next
+		// 2. 在非baseline情况下, next列表里可能有IBBP, next链表用于决策此帧是P还是B帧
+        x264_lookahead_put_frame( h, fenc ); 
 
         if( h->frames.i_input <= h->frames.i_delay + 1 - h->param.i_threads )
         {
@@ -1728,14 +1732,18 @@ int     x264_encoder_encode( x264_t *h,
 
     /* 3: The picture is analyzed in the lookahead */
     if( !h->frames.current[0] )
-        x264_lookahead_get_frames( h ); // 1.current此时为fenc; 2.确定frame是IDR/I/P/B帧
+	{
+		// 1. 先决定待编码帧的类型(根据GOP决定是否是IDR帧.. 根据Profile决定是B帧还是P帧)
+		// 2. 根据next链表中的待编码帧s(如帧序为BBP, 应先编码P帧), 重排到到current链表
+        x264_lookahead_get_frames( h );
+	}
 
     if( !h->frames.current[0] && x264_lookahead_is_empty( h ) )
         return x264_encoder_frame_end( thread_oldest, thread_current, pp_nal, pi_nal, pic_out );
 
     /* ------------------- Get frame to be encoded ------------------------- */
     /* 4: get picture to encode */
-    h->fenc = x264_frame_shift( h->frames.current );
+    h->fenc = x264_frame_shift( h->frames.current ); // 取到当前应该编码的帧
     if( h->fenc->param )
     {
         x264_encoder_reconfig( h, h->fenc->param );
@@ -1796,7 +1804,7 @@ int     x264_encoder_encode( x264_t *h,
 
     /* ------------------- Init                ----------------------------- */
     /* build ref list 0/1 */
-    x264_reference_build_list( h, h->fdec->i_poc );
+    x264_reference_build_list( h, h->fdec->i_poc ); // 创建参考帧链表list0/1
 
     if( h->sh.i_type == SLICE_TYPE_B )
         x264_macroblock_bipred_init( h );

@@ -218,9 +218,9 @@ static void x264_lookahead_encoder_shift( x264_t *h )
             break;
         i_frames++;
     }
-    if( h->lookahead->ofbuf.list[i_frames] )
+    if( h->lookahead->ofbuf.list[i_frames] ) // 如果ofbuf链表里有非B帧的话, 才开始编码, 否则要直接开始分析下一帧
     {
-        x264_frame_push( h->frames.current, x264_frame_shift( &h->lookahead->ofbuf.list[bframes] ) );
+        x264_frame_push( h->frames.current, x264_frame_shift( &h->lookahead->ofbuf.list[bframes] ) ); // 将非B帧先编码
         h->lookahead->ofbuf.i_size--;
         if( h->param.b_bframe_pyramid && bframes > 1 )
         {
@@ -232,7 +232,7 @@ static void x264_lookahead_encoder_shift( x264_t *h )
         }
         while( bframes-- )
         {
-            x264_frame_push( h->frames.current, x264_frame_shift( h->lookahead->ofbuf.list ) );
+            x264_frame_push( h->frames.current, x264_frame_shift( h->lookahead->ofbuf.list ) ); // 接着非B帧编码之后, 再编码B帧
             h->lookahead->ofbuf.i_size--;
         }
         x264_pthread_cond_broadcast( &h->lookahead->ofbuf.cv_empty );
@@ -256,19 +256,19 @@ void x264_lookahead_get_frames( x264_t *h )
         if( h->frames.current[0] || !h->lookahead->next.i_size )
             return;
 
-        x264_stack_align( x264_slicetype_decide, h );
+        x264_stack_align( x264_slicetype_decide, h ); // 决策此帧的类型
 
         bframes=0;
         while( IS_X264_TYPE_B( h->lookahead->next.list[bframes]->i_type ) )
             bframes++;
 
-        x264_lookahead_update_last_nonb( h, h->lookahead->next.list[bframes] );
-        x264_lookahead_shift( &h->lookahead->ofbuf, &h->lookahead->next, bframes + 1 );
+        x264_lookahead_update_last_nonb( h, h->lookahead->next.list[bframes] );         // 更新最后一个非B帧
+        x264_lookahead_shift( &h->lookahead->ofbuf, &h->lookahead->next, bframes + 1 ); // 决策结束, 将next链表里的帧全部弹出到ofbuf链表里, ofbuf长度可能>1(因为可能会有B帧)
 
         /* For MB-tree and VBV lookahead, we have to perform propagation analysis on I-frames too. */
         if( h->lookahead->b_analyse_keyframe && IS_X264_TYPE_I( h->lookahead->last_nonb->i_type ) )
             x264_stack_align( x264_slicetype_analyse, h, 1 );
 
-        x264_lookahead_encoder_shift( h );
+        x264_lookahead_encoder_shift( h ); // 以ofbuf链表里的帧来决定current链表里编码帧的顺序
     }
 }

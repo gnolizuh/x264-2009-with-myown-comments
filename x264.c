@@ -1219,7 +1219,7 @@ static int  Encode( x264_param_t *param, cli_opt_t *opt )
             pic.i_qpplus1 = 0;
         }
 
-        i_frame_size = Encode_frame( h, opt->hout, &pic );
+        i_frame_size = Encode_frame( h, opt->hout, &pic ); // encode a frame.
         if( i_frame_size < 0 )
             return -1;
         i_file += i_frame_size;
