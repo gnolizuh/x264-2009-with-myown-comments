@@ -1330,7 +1330,7 @@ static int x264_slice_write( x264_t *h )
     x264_nal_start( h, h->i_nal_type, h->i_nal_ref_idc );
 
     /* Slice header */
-    x264_slice_header_write( &h->out.bs, &h->sh, h->i_nal_ref_idc );
+    x264_slice_header_write( &h->out.bs, &h->sh, h->i_nal_ref_idc ); // write slice header into NAL
     if( h->param.b_cabac )
     {
         /* alignment needed */
@@ -1348,7 +1348,7 @@ static int x264_slice_write( x264_t *h )
     i_skip = 0;
 
 	// MARK
-	// 编码一个宏块
+	// 编码每个16x16宏块
     while( (mb_xy = i_mb_x + i_mb_y * h->sps->i_mb_width) <= h->sh.i_last_mb )
     {
         int mb_spos = bs_pos(&h->out.bs) + x264_cabac_pos(&h->cabac);
@@ -1374,7 +1374,7 @@ static int x264_slice_write( x264_t *h )
         if( i_mb_x == 0 && !h->mb.b_reencode_mb )
             x264_fdec_filter_row( h, i_mb_y ); // 去区块滤波器, 只需从第二行编码完成后处理即可
 
-        /* load cache */
+        /* 以此16x16宏块周边的宏块来预设: 预测的可用模式 等等.. */
         x264_macroblock_cache_load( h, i_mb_x, i_mb_y );
 
         x264_macroblock_analyse( h );

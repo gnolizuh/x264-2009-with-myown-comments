@@ -880,10 +880,10 @@ static void ALWAYS_INLINE x264_macroblock_load_pic_pointers( x264_t *h, int i_mb
 
 void x264_macroblock_cache_load( x264_t *h, int i_mb_x, int i_mb_y )
 {
-    int i_mb_xy = i_mb_y * h->mb.i_mb_stride + i_mb_x;
-    int i_mb_4x4 = 4*(i_mb_y * h->mb.i_b4_stride + i_mb_x);
-    int i_mb_8x8 = 2*(i_mb_y * h->mb.i_b8_stride + i_mb_x);
-    int i_top_y = i_mb_y - (1 << h->mb.b_interlaced);
+    int i_mb_xy = i_mb_y * h->mb.i_mb_stride + i_mb_x;          // 以16x16为单位的索引
+    int i_mb_4x4 = 4*(i_mb_y * h->mb.i_b4_stride + i_mb_x);     // 以 4x4 为单位的索引
+    int i_mb_8x8 = 2*(i_mb_y * h->mb.i_b8_stride + i_mb_x);     // 以 8x8 为单位的索引
+    int i_top_y = i_mb_y - (1 << h->mb.b_interlaced);           // 上一行y的索引(如果是interlace,那么中间隔着一行bottom)
     int i_top_xy = i_top_y * h->mb.i_mb_stride + i_mb_x;
     int i_top_4x4 = (4*i_top_y+3) * h->mb.i_b4_stride + 4*i_mb_x;
     int i_top_8x8 = (2*i_top_y+1) * h->mb.i_b8_stride + 2*i_mb_x;
@@ -903,7 +903,7 @@ void x264_macroblock_cache_load( x264_t *h, int i_mb_x, int i_mb_y )
     h->mb.i_neighbour = 0;
 
     /* load cache */
-    if( i_top_xy >= h->sh.i_first_mb )
+    if( i_top_xy >= h->sh.i_first_mb ) // 如果TOP宏块存在
     {
         h->mb.i_mb_type_top =
         i_top_type= h->mb.type[i_top_xy];
@@ -912,7 +912,7 @@ void x264_macroblock_cache_load( x264_t *h, int i_mb_x, int i_mb_y )
         h->mb.i_neighbour |= MB_TOP;
 
         /* load intra4x4 */
-        *(uint32_t*)&h->mb.cache.intra4x4_pred_mode[x264_scan8[0] - 8] = *(uint32_t*)&h->mb.intra4x4_pred_mode[i_top_xy][0];
+        *(uint32_t*)&h->mb.cache.intra4x4_pred_mode[x264_scan8[0] - 8] = *(uint32_t*)&h->mb.intra4x4_pred_mode[i_top_xy][0]; // 存储TOP宏块的i4x4预测模式
 
         /* load non_zero_count */
         *(uint32_t*)&h->mb.cache.non_zero_count[x264_scan8[0] - 8] = *(uint32_t*)&h->mb.non_zero_count[i_top_xy][12];
@@ -920,7 +920,7 @@ void x264_macroblock_cache_load( x264_t *h, int i_mb_x, int i_mb_y )
         *(uint32_t*)&h->mb.cache.non_zero_count[x264_scan8[16] - 9] = *(uint16_t*)&h->mb.non_zero_count[i_top_xy][18] << 8;
         *(uint32_t*)&h->mb.cache.non_zero_count[x264_scan8[16+4] - 9] = *(uint16_t*)&h->mb.non_zero_count[i_top_xy][22] << 8;
     }
-    else
+    else // 如果TOP宏块不存在
     {
         h->mb.i_mb_type_top = -1;
         h->mb.cache.i_cbp_top = -1;
@@ -942,7 +942,7 @@ void x264_macroblock_cache_load( x264_t *h, int i_mb_x, int i_mb_y )
         h->mb.cache.non_zero_count[x264_scan8[16+4+1] - 8] = 0x80;
     }
 
-    if( i_mb_x > 0 && i_mb_xy > h->sh.i_first_mb )
+    if( i_mb_x > 0 && i_mb_xy > h->sh.i_first_mb ) // 如果LEFT宏块存在
     {
         i_left_xy = i_mb_xy - 1;
         h->mb.i_mb_type_left =
@@ -950,6 +950,16 @@ void x264_macroblock_cache_load( x264_t *h, int i_mb_x, int i_mb_y )
         h->mb.cache.i_cbp_left = h->mb.cbp[h->mb.i_mb_xy - 1];
 
         h->mb.i_neighbour |= MB_LEFT;
+
+		/*
+		   0 1 2 3 4 5 6 7
+		 0
+		 1   B B   L L L L
+		 2   B B   L L L L
+		 3         L L L L
+		 4   R R   L L L L
+		 5   R R   DyDuDv
+		*/
 
         /* load intra4x4 */
         h->mb.cache.intra4x4_pred_mode[x264_scan8[0 ] - 1] = h->mb.intra4x4_pred_mode[i_left_xy][4];
@@ -1046,7 +1056,7 @@ void x264_macroblock_cache_load( x264_t *h, int i_mb_x, int i_mb_y )
     x264_prefetch_fenc( h, h->fenc, i_mb_x, i_mb_y );
 
     /* load ref/mv/mvd */
-    if( h->sh.i_type != SLICE_TYPE_I )
+    if( h->sh.i_type != SLICE_TYPE_I ) // 如果是P帧
     {
         const int s8x8 = h->mb.i_b8_stride;
         const int s4x4 = h->mb.i_b4_stride;
@@ -1066,8 +1076,8 @@ void x264_macroblock_cache_load( x264_t *h, int i_mb_x, int i_mb_y )
                 const int i8 = x264_scan8[0] - 1 - 1*8;
                 const int ir = i_top_8x8 - 1;
                 const int iv = i_top_4x4 - 1;
-                h->mb.cache.ref[i_list][i8]  = h->mb.ref[i_list][ir];
-                *(uint32_t*)h->mb.cache.mv[i_list][i8] = *(uint32_t*)h->mb.mv[i_list][iv];
+                h->mb.cache.ref[i_list][i8]  = h->mb.ref[i_list][ir]; // 存储TOP-LEFT宏块参考的帧索引(在参考列表list0/1中)
+                *(uint32_t*)h->mb.cache.mv[i_list][i8] = *(uint32_t*)h->mb.mv[i_list][iv]; // 存储TOP-LEFT宏块的MV
             }
             else
             {
@@ -1187,9 +1197,10 @@ void x264_macroblock_cache_load( x264_t *h, int i_mb_x, int i_mb_y )
             x264_mb_predict_mv_pskip( h, h->mb.cache.pskip_mv );
     }
 
+	// 以16x16宏块周边宏块来决定: 这个16x16宏块中的 4个8x8和16个4x4都有哪些可参考宏块
     h->mb.i_neighbour4[0] =
     h->mb.i_neighbour8[0] = (h->mb.i_neighbour & (MB_TOP|MB_LEFT|MB_TOPLEFT))
-                            | ((h->mb.i_neighbour & MB_TOP) ? MB_TOPRIGHT : 0);
+                            | ((h->mb.i_neighbour & MB_TOP) ? MB_TOPRIGHT : 0); // 如((h->mb.i_neighbour & MB_TOP) ? MB_TOPRIGHT : 0) --> 16x16宏块有TOP, 那么他的第一个4x4/8x8宏块肯定有TOP-RIGHT
     h->mb.i_neighbour4[4] =
     h->mb.i_neighbour4[1] = MB_LEFT | ((h->mb.i_neighbour & MB_TOP) ? (MB_TOP|MB_TOPLEFT|MB_TOPRIGHT) : 0);
     h->mb.i_neighbour4[2] =
