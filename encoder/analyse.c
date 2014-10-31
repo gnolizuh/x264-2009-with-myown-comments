@@ -639,8 +639,8 @@ static inline void x264_mb_cache_fenc_satd( x264_t *h )
                                       - (h->pixf.sad[PIXEL_8x8]( zero, 0, fenc, FENC_STRIDE )>>2);
             sa8d_sum += h->mb.pic.fenc_sa8d[y][x];
         }
-    h->mb.pic.fenc_satd_sum = satd_sum;
-    h->mb.pic.fenc_sa8d_sum = sa8d_sum;
+    h->mb.pic.fenc_satd_sum = satd_sum; // 4x4分块的预设的理想satd?
+    h->mb.pic.fenc_sa8d_sum = sa8d_sum; // 8x8分块的预设的理想satd?
 }
 
 static void x264_mb_analyse_intra_chroma( x264_t *h, x264_mb_analysis_t *a )
@@ -2355,7 +2355,7 @@ void x264_macroblock_analyse( x264_t *h )
     if( h->sh.i_type == SLICE_TYPE_I )
     {
         if( analysis.i_mbrd )
-            x264_mb_cache_fenc_satd( h );
+            x264_mb_cache_fenc_satd( h ); // 预设理想的satd值
         x264_mb_analyse_intra( h, &analysis, COST_MAX ); // 计算帧内COST
         if( analysis.i_mbrd )
             x264_intra_rd( h, &analysis, COST_MAX ); // 对16x16 / 4x4宏块进行编码, 会重新计算satd值?

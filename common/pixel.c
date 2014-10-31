@@ -187,6 +187,17 @@ static int pixel_var2_8x8( uint8_t *pix1, int i_stride1, uint8_t *pix2, int i_st
     return var;
 }
 
+// hadamard4 (Hadamard Ordered)
+// 1  1  1  1
+// 1 -1  1 -1
+// 1  1 -1 -1
+// 1 -1 -1  1
+
+// transformed ==>(Sequency Ordered)
+// 1  1  1  1
+// 1  1 -1 -1
+// 1 -1 -1  1
+// 1 -1  1 -1
 
 #define HADAMARD4(d0,d1,d2,d3,s0,s1,s2,s3) {\
     int t0 = s0 + s1;\
@@ -243,15 +254,16 @@ static NOINLINE int x264_pixel_satd_8x4( uint8_t *pix1, int i_pix1, uint8_t *pix
     int sum=0, i;
     for( i=0; i<4; i++, pix1+=i_pix1, pix2+=i_pix2 )
     {
+		// 为节省运算, 一次算两个4x4矩阵的hardama值
         a0 = (pix1[0] - pix2[0]) + ((pix1[4] - pix2[4]) << 16);
         a1 = (pix1[1] - pix2[1]) + ((pix1[5] - pix2[5]) << 16);
         a2 = (pix1[2] - pix2[2]) + ((pix1[6] - pix2[6]) << 16);
         a3 = (pix1[3] - pix2[3]) + ((pix1[7] - pix2[7]) << 16);
-        HADAMARD4( tmp[i][0], tmp[i][1], tmp[i][2], tmp[i][3], a0,a1,a2,a3 );
+        HADAMARD4( tmp[i][0], tmp[i][1], tmp[i][2], tmp[i][3], a0,a1,a2,a3 ); // 列的hardama变换
     }
     for( i=0; i<4; i++ )
     {
-        HADAMARD4( a0,a1,a2,a3, tmp[0][i], tmp[1][i], tmp[2][i], tmp[3][i] );
+        HADAMARD4( a0,a1,a2,a3, tmp[0][i], tmp[1][i], tmp[2][i], tmp[3][i] ); // 行的hardama变换
         sum += abs2(a0) + abs2(a1) + abs2(a2) + abs2(a3);
     }
     return (((uint16_t)sum) + ((uint32_t)sum>>16)) >> 1;
