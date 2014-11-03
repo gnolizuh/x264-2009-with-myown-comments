@@ -1377,14 +1377,17 @@ static int x264_slice_write( x264_t *h )
         /* 以此16x16宏块周边的宏块来预设: 预测的可用模式 等等.. */
         x264_macroblock_cache_load( h, i_mb_x, i_mb_y );
 
+		// 进行帧内/帧间预测
         x264_macroblock_analyse( h );
 
         /* encode this macroblock -> be careful it can change the mb type to P_SKIP if needed */
+		// 进行zig-zag扫描; 变换编码; 量化;
         x264_macroblock_encode( h );
 
         if( x264_bitstream_check_buffer( h ) )
             return -1;
 
+		// 熵编码(calvc/cabac编码)
         if( h->param.b_cabac )
         {
             if( mb_xy > h->sh.i_first_mb && !(h->sh.b_mbaff && (i_mb_y&1)) )
@@ -1514,7 +1517,7 @@ static int x264_slice_write( x264_t *h )
             i_mb_y++;
             i_mb_x = 0;
         }
-    }
+    } // while(each marcoblocks)
 
     if( h->param.b_cabac )
     {

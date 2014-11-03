@@ -147,9 +147,9 @@ void x264_mb_encode_i4x4( x264_t *h, int idx, int i_qp )
     if( nz )
     {
         h->mb.i_cbp_luma |= 1<<(idx>>2);
-        h->zigzagf.scan_4x4( h->dct.luma4x4[idx], dct4x4 );
-        h->quantf.dequant_4x4( dct4x4, h->dequant4_mf[CQM_4IY], i_qp );
-        h->dctf.add4x4_idct( p_dst, dct4x4 );
+        h->zigzagf.scan_4x4( h->dct.luma4x4[idx], dct4x4 );             // zigzag扫描到luma4x4中
+        h->quantf.dequant_4x4( dct4x4, h->dequant4_mf[CQM_4IY], i_qp ); // 逆向量化编码
+        h->dctf.add4x4_idct( p_dst, dct4x4 );                           // 逆向变换编码到重建宏块中(因为帧内预测需要参考重建的宏块)
     }
 }
 
