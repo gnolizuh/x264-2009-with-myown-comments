@@ -86,9 +86,9 @@ typedef struct x264_t x264_t;
 #define X264_CQM_FLAT                0
 #define X264_CQM_JVT                 1
 #define X264_CQM_CUSTOM              2
-#define X264_RC_CQP                  0 // constant QP
-#define X264_RC_CRF                  1 // constant rate faoctor (对运动的物体保留更多的bits)
-#define X264_RC_ABR                  2 // adaptive Bit-rate
+#define X264_RC_CQP                  0 // Constant QP == CQ(Constant Quantizer)
+#define X264_RC_CRF                  1 // Constant rate factor (对运动的物体保留更多的bits)
+#define X264_RC_ABR                  2 // Average Bitrate
 #define X264_AQ_NONE                 0
 #define X264_AQ_VARIANCE             1
 #define X264_AQ_AUTOVARIANCE         2

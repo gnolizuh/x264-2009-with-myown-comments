@@ -971,7 +971,7 @@ int x264_rc_analyse_slice( x264_t *h )
     int p0=0, p1, b;
     int cost;
 
-    if( IS_X264_TYPE_I(h->fenc->i_type) )
+    if( IS_X264_TYPE_I(h->fenc->i_type) ) // 此时帧类型已经决定
         p1 = b = 0;
     else // P
         p1 = b = h->fenc->i_bframes + 1;

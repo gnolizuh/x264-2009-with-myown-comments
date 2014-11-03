@@ -1872,7 +1872,7 @@ int     x264_encoder_encode( x264_t *h,
 
     /* Init the rate control */
     /* FIXME: Include slice header bit cost. */
-    x264_ratecontrol_start( h, h->fenc->i_qpplus1, overhead*8 );
+    x264_ratecontrol_start( h, h->fenc->i_qpplus1, overhead*8 ); // 流控模块: 计算QP值
     i_global_qp = x264_ratecontrol_qp( h );
 
     pic_out->i_qpplus1 =
