@@ -1194,7 +1194,7 @@ void x264_macroblock_cache_load( x264_t *h, int i_mb_x, int i_mb_y )
         }
 
         if( h->sh.i_type == SLICE_TYPE_P )
-            x264_mb_predict_mv_pskip( h, h->mb.cache.pskip_mv );
+            x264_mb_predict_mv_pskip( h, h->mb.cache.pskip_mv ); // mv must= mvp
     }
 
 	// 以16x16宏块周边宏块来决定: 这个16x16宏块中的 4个8x8和16个4x4都有哪些可参考宏块

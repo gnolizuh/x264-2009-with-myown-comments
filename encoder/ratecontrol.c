@@ -337,9 +337,9 @@ int x264_ratecontrol_new( x264_t *h )
     else
         rc->qcompress = h->param.rc.f_qcompress;
 
-    rc->bitrate = h->param.rc.i_bitrate * 1000.;
-    rc->rate_tolerance = h->param.rc.f_rate_tolerance;
-    rc->nmb = h->mb.i_mb_count;
+    rc->bitrate = h->param.rc.i_bitrate * 1000.;       // 目标码率
+    rc->rate_tolerance = h->param.rc.f_rate_tolerance; // 误差容忍度
+    rc->nmb = h->mb.i_mb_count;                        // 一帧的宏块数(width*height)/(16*16)
     rc->last_non_b_pict_type = -1;
     rc->cbr_decay = 1.0;
 
@@ -930,9 +930,9 @@ void x264_ratecontrol_start( x264_t *h, int i_force_qp, int overhead )
     {
         q = i_force_qp - 1;
     }
-    else if( rc->b_abr )
+    else if( rc->b_abr ) // Average Bitrate
     {
-        q = qscale2qp( rate_estimate_qscale( h, overhead ) );
+        q = qscale2qp( rate_estimate_qscale( h, overhead ) ); // 先估计qscale, 然后将qscale转换成qp
     }
     else if( rc->b_2pass )
     {
@@ -1279,7 +1279,7 @@ static double get_qscale(x264_t *h, ratecontrol_entry_t *rce, double rate_factor
     double q;
     x264_zone_t *zone = get_zone( h, frame_num );
 
-    q = pow( rce->blurred_complexity, 1 - rcc->qcompress );
+    q = pow( rce->blurred_complexity, 1 - rcc->qcompress ); // blurred_complexity 的 (1 - rcc->qcompress) 次幂
 
     // avoid NaN's in the rc_eq
     if(!isfinite(q) || rce->tex_bits + rce->mv_bits == 0)
@@ -1288,7 +1288,7 @@ static double get_qscale(x264_t *h, ratecontrol_entry_t *rce, double rate_factor
     {
         rcc->last_rceq = q;
         q /= rate_factor;
-        rcc->last_qscale = q;
+        rcc->last_qscale = q; // 从这看,qscale=q/rate_factor; rate_factor是个固定值
     }
 
     if( zone )
@@ -1705,6 +1705,12 @@ static float rate_estimate_qscale( x264_t *h, int overhead )
              * Result: Depending on the value of rate_tolerance, there is a
              * tradeoff between quality and bitrate precision. But at large
              * tolerances, the bit distribution approaches that of 2pass. */
+
+			/* 计算需要的平均比特率.然后根据当前帧的复杂度和平均复杂度的差值, 调
+			 * 整量化参数.如果离目标大小还有差距, 那么再调整量化值.
+			 * 结果: 调整rate_tolerance的值来权衡质量和比特率的比例. 在最大忍受
+			 * 值的情况下, 编码比特的分配接近于2pass.
+			 */
 
             double wanted_bits, overflow=1, lmin, lmax;
 

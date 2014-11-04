@@ -67,7 +67,7 @@ enum mb_class_e
 
     P_L0            = 4,
     P_8x8           = 5,
-    P_SKIP          = 6,
+    P_SKIP          = 6,  // MVP==MV 或者说 MVd==0 (only in partition p16x16)
 
     B_DIRECT        = 7,
     B_L0_L0         = 8,
@@ -80,7 +80,7 @@ enum mb_class_e
     B_BI_L1         = 15,
     B_BI_BI         = 16,
     B_8x8           = 17,
-    B_SKIP          = 18,
+    B_SKIP          = 18,  // 同P_SKP
 
     X264_MBTYPE_MAX = 19
 };

@@ -1205,9 +1205,9 @@ static void x264_mb_analyse_inter_p16x16( x264_t *h, x264_mb_analysis_t *a )
         x264_mb_predict_mv_ref16x16( h, 0, i_ref, mvc, &i_mvc );      // MVC由相应于此宏块周围的"参考帧宏块", 将他们的MV放入MVC
         x264_me_search_ref( h, &m, mvc, i_mvc, p_halfpel_thresh );    // ** 真正的帧间预测实体
 
-        /* early termination
+        /* early termination 提前结束
          * SSD threshold would probably be better than SATD */
-        if( i_ref == 0
+        if( i_ref == 0 /*必须邻近的参考帧*/
             && a->b_try_pskip
             && m.cost-m.cost_mv < 300*a->i_lambda
             &&  abs(m.mv[0]-h->mb.cache.pskip_mv[0])
