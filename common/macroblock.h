@@ -67,7 +67,7 @@ enum mb_class_e
 
     P_L0            = 4,
     P_8x8           = 5,
-    P_SKIP          = 6,
+    P_SKIP          = 6,  // MVP==MV ªÚ’ﬂÀµ MVd==0
 
     B_DIRECT        = 7,
     B_L0_L0         = 8,
