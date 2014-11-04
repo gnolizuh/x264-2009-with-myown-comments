@@ -895,7 +895,7 @@ void x264_macroblock_encode( x264_t *h )
             *(uint32_t*)h->mb.cache.mv[0][x264_scan8[0]] == *(uint32_t*)h->mb.cache.pskip_mv
             && h->mb.cache.ref[0][x264_scan8[0]] == 0 )
         {
-            h->mb.i_type = P_SKIP;
+            h->mb.i_type = P_SKIP; // 是P16x16 && 亮度/色度diff为0 && mv为mvp
         }
 
         /* Check for B_SKIP */
