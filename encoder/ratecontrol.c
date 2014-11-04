@@ -1279,7 +1279,7 @@ static double get_qscale(x264_t *h, ratecontrol_entry_t *rce, double rate_factor
     double q;
     x264_zone_t *zone = get_zone( h, frame_num );
 
-    q = pow( rce->blurred_complexity, 1 - rcc->qcompress );
+    q = pow( rce->blurred_complexity, 1 - rcc->qcompress ); // blurred_complexity 的 (1 - rcc->qcompress) 次幂
 
     // avoid NaN's in the rc_eq
     if(!isfinite(q) || rce->tex_bits + rce->mv_bits == 0)
@@ -1288,7 +1288,7 @@ static double get_qscale(x264_t *h, ratecontrol_entry_t *rce, double rate_factor
     {
         rcc->last_rceq = q;
         q /= rate_factor;
-        rcc->last_qscale = q;
+        rcc->last_qscale = q; // 从这看,qscale=q/rate_factor; rate_factor是个固定值
     }
 
     if( zone )

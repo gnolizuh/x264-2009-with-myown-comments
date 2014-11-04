@@ -315,21 +315,21 @@ static int x264_slicetype_frame_cost( x264_t *h, x264_mb_analysis_t *a,
         {
             for( h->mb.i_mb_y = h->sps->i_mb_height - 1; h->mb.i_mb_y >= 0; h->mb.i_mb_y-- )
             {
-                row_satd[ h->mb.i_mb_y ] = 0;
+                row_satd[ h->mb.i_mb_y ] = 0; // 行的satd
                 for( h->mb.i_mb_x = h->sps->i_mb_width - 1; h->mb.i_mb_x >= 0; h->mb.i_mb_x-- )
                 {
                     int i_mb_cost = x264_slicetype_mb_cost( h, a, frames, p0, p1, b, dist_scale_factor, do_search );
                     int i_mb_cost_aq = i_mb_cost;
                     if( h->param.rc.i_aq_mode )
                         i_mb_cost_aq = (i_mb_cost_aq * frames[b]->i_inv_qscale_factor[h->mb.i_mb_x + h->mb.i_mb_y*h->mb.i_mb_stride] + 128) >> 8;
-                    row_satd[ h->mb.i_mb_y ] += i_mb_cost_aq;
+                    row_satd[ h->mb.i_mb_y ] += i_mb_cost_aq; // 累加一行的satd
                     if( (h->mb.i_mb_y > 0 && h->mb.i_mb_y < h->sps->i_mb_height - 1 &&
                          h->mb.i_mb_x > 0 && h->mb.i_mb_x < h->sps->i_mb_width - 1) ||
                          h->sps->i_mb_width <= 2 || h->sps->i_mb_height <= 2 )
                     {
                         /* Don't use AQ-weighted costs for slicetype decision, only for ratecontrol. */
-                        i_score += i_mb_cost;
-                        i_score_aq += i_mb_cost_aq;
+                        i_score += i_mb_cost;       // 帧的satd
+                        i_score_aq += i_mb_cost_aq; // 帧的aq
                     }
                 }
             }
@@ -353,8 +353,8 @@ static int x264_slicetype_frame_cost( x264_t *h, x264_mb_analysis_t *a,
         else
             frames[b]->b_intra_calculated = 1;
 
-        frames[b]->i_cost_est[b-p0][p1-b] = i_score;
-        frames[b]->i_cost_est_aq[b-p0][p1-b] = i_score_aq;
+        frames[b]->i_cost_est[b-p0][p1-b] = i_score;       // SATD
+        frames[b]->i_cost_est_aq[b-p0][p1-b] = i_score_aq; // AQ
         x264_emms();
     }
 
@@ -946,6 +946,7 @@ void x264_slicetype_decide( x264_t *h )
     h->lookahead->next.list[bframes]->i_bframes = bframes; // 此帧前面有多少个B帧
 
     /* calculate the frame costs ahead of time for x264_rc_analyse_slice while we still have lowres */
+	/* 在x264_rc_analyse_slice之前计算cost */
     if( h->param.rc.i_rc_method != X264_RC_CQP )
     {
         x264_mb_analysis_t a;
@@ -955,16 +956,19 @@ void x264_slicetype_decide( x264_t *h )
         x264_lowres_context_init( h, &a );
 
         if( IS_X264_TYPE_I( h->lookahead->next.list[bframes]->i_type ) )
-            p1 = b = 0;
-        else // P
-            p1 = b = bframes + 1;
+            p1 = b = 0;           // 如果next链表里最后一个是I帧
+        else
+            p1 = b = bframes + 1; // 如果next链表里最后一个是P帧
         frames[p0] = h->lookahead->last_nonb;
         frames[b] = h->lookahead->next.list[bframes];
 
-        x264_slicetype_frame_cost( h, &a, frames, p0, p1, b, 0 );
+		// if I帧 then frames里只有当前的I帧
+		// if P帧 then frames里[nonb-frame][nul]...[p-frame]
+        x264_slicetype_frame_cost( h, &a, frames, p0, p1, b, 0 ); // 如果没有计算当前帧的cost, 那么计算它
     }
 }
 
+/* 计算当前帧的复杂度 */
 int x264_rc_analyse_slice( x264_t *h )
 {
     x264_frame_t *frames[X264_BFRAME_MAX+2] = { NULL, };

@@ -320,6 +320,8 @@ void x264_frame_init_lowres( x264_t *h, x264_frame_t *frame )
     memcpy( src+i_stride*i_height, src+i_stride*(i_height-1), i_width ); // copy last row
     h->mc.frame_init_lowres_core( src, frame->lowres[0], frame->lowres[1], frame->lowres[2], frame->lowres[3],
                                   i_stride, frame->i_stride_lowres, frame->i_width_lowres, frame->i_lines_lowres );
+
+	// 扩展最后一行和最后一列
     x264_frame_expand_border_lowres( frame );
 
 	// Initialize for adaptive B-frame decision.
@@ -334,6 +336,12 @@ void x264_frame_init_lowres( x264_t *h, x264_frame_t *frame )
             frame->lowres_mvs[y][x][0][0] = 0x7FFF;
 }
 
+// A00   A01   A02   A03   A04
+//     *     *     *     *
+// A10   A11   A12   A13   A14
+//     *     *     *     *
+// A20   A21   A22   A23   A24
+// 不包括最后一行和最后一列
 static void frame_init_lowres_core( uint8_t *src0, uint8_t *dst0, uint8_t *dsth, uint8_t *dstv, uint8_t *dstc,
                                     int src_stride, int dst_stride, int width, int height )
 {

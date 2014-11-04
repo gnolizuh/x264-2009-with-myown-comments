@@ -39,6 +39,7 @@ int  x264_ratecontrol_end( x264_t *, int bits );
 void x264_ratecontrol_summary( x264_t * );
 void x264_ratecontrol_set_estimated_size( x264_t *, int bits );
 int  x264_ratecontrol_get_estimated_size( x264_t const *);
+// 计算当前帧的复杂度
 int  x264_rc_analyse_slice( x264_t *h );
 
 #endif
