@@ -215,6 +215,8 @@ static const uint8_t block_idx_yx_1d[16] =
 {
     0, 4, 1, 5, 8, 12, 9, 13, 2, 6, 3, 7, 10, 14, 11, 15
 };
+
+// 编码帧中16个4x4宏块的索引
 static const uint8_t block_idx_xy_fenc[16] =
 {
     0*4 + 0*4*FENC_STRIDE, 1*4 + 0*4*FENC_STRIDE,
@@ -226,6 +228,8 @@ static const uint8_t block_idx_xy_fenc[16] =
     2*4 + 2*4*FENC_STRIDE, 3*4 + 2*4*FENC_STRIDE,
     2*4 + 3*4*FENC_STRIDE, 3*4 + 3*4*FENC_STRIDE
 };
+
+// 重建帧中16个4x4宏块的索引
 static const uint16_t block_idx_xy_fdec[16] =
 {
     0*4 + 0*4*FDEC_STRIDE, 1*4 + 0*4*FDEC_STRIDE,

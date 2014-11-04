@@ -880,16 +880,16 @@ static void x264_mb_analyse_intra( x264_t *h, x264_mb_analysis_t *a, int i_satd_
         if( h->sh.i_type == SLICE_TYPE_B )
             i_cost += a->i_lambda * i_mb_b_cost_table[I_4x4];
 
-        for( idx = 0;; idx++ )
+        for( idx = 0;; idx++ ) // 对所有4x4宏块进行预测
         {
-            uint8_t *p_src_by = p_src + block_idx_xy_fenc[idx];
-            uint8_t *p_dst_by = p_dst + block_idx_xy_fdec[idx];
+            uint8_t *p_src_by = p_src + block_idx_xy_fenc[idx]; // 每个4x4待编码宏块的起始地址
+            uint8_t *p_dst_by = p_dst + block_idx_xy_fdec[idx]; // 每个4x4  重建宏块的起始地址
             int i_best = COST_MAX;
             int i_pred_mode = x264_mb_predict_intra4x4_mode( h, idx );
 
             predict_4x4_mode_available( h->mb.i_neighbour4[idx], predict_mode, &i_max ); // 看看此4x4宏块周围有哪些neighbour, 判断哪些预测模式可用.
 
-            if( (h->mb.i_neighbour4[idx] & (MB_TOPRIGHT|MB_TOP)) == MB_TOP )
+            if( (h->mb.i_neighbour4[idx] & (MB_TOPRIGHT|MB_TOP)) == MB_TOP ) // 如果当前宏块有TOP宏块
                 /* emulate missing topright samples */
                 *(uint32_t*) &p_dst_by[4 - FDEC_STRIDE] = p_dst_by[3 - FDEC_STRIDE] * 0x01010101U;
 
@@ -913,23 +913,23 @@ static void x264_mb_analyse_intra( x264_t *h, x264_mb_analysis_t *a, int i_satd_
                 if( h->mb.b_lossless )
                     x264_predict_lossless_4x4( h, p_dst_by, idx, i_mode );
                 else
-                    h->predict_4x4[i_mode]( p_dst_by );
+                    h->predict_4x4[i_mode]( p_dst_by ); // 得到4x4宏块的帧內预测块
 
                 i_satd = h->pixf.mbcmp[PIXEL_4x4]( p_dst_by, FDEC_STRIDE,
                                                    p_src_by, FENC_STRIDE )
-                       + a->i_lambda * (i_pred_mode == x264_mb_pred_mode4x4_fix(i_mode) ? 1 : 4);
+                       + a->i_lambda * (i_pred_mode == x264_mb_pred_mode4x4_fix(i_mode) ? 1 : 4); // 计算4x4宏块的satd值
 
-                COPY2_IF_LT( i_best, i_satd, a->i_predict4x4[idx], i_mode );
+                COPY2_IF_LT( i_best, i_satd, a->i_predict4x4[idx], i_mode ); // 选取此4x4宏块的最佳预测模式
             }
             i_cost += i_best;
 
-            if( i_cost > i_satd_thresh || idx == 15 ) // 计算出来的cost值是否已经大于之前的thresh || 计算完所有4x4宏块还都<=thresh
+            if( i_cost > i_satd_thresh || idx == 15 ) // 计算出的cost已经大于16x16_cost, 那么不用再继续了
                 break;
 
             /* we need to encode this block now (for next ones) */
 			/* 我们必须先编码这个宏块, 因为后面的宏块需要参考编码重建过的4x4宏块 */
-            h->predict_4x4[a->i_predict4x4[idx]]( p_dst_by );
-            x264_mb_encode_i4x4( h, idx, a->i_qp );
+            h->predict_4x4[a->i_predict4x4[idx]]( p_dst_by ); // 最终以此4x4宏块的最佳预测模式来预测
+            x264_mb_encode_i4x4( h, idx, a->i_qp );           // 此4x4宏块需要先编码, 因为后面的4x4宏块需要用到此宏块
 
             h->mb.cache.intra4x4_pred_mode[x264_scan8[idx]] = a->i_predict4x4[idx]; // 指定每个4x4宏块的预测模式
         }
@@ -1167,10 +1167,10 @@ static void x264_intra_rd_refine( x264_t *h, x264_mb_analysis_t *a )
     (m)->p_fenc[2] = &(src)[2][((xoff)>>1)+((yoff)>>1)*FENC_STRIDE];
 
 #define LOAD_HPELS(m, src, list, ref, xoff, yoff) \
-    (m)->p_fref[0]/* 原像素平面 */ = &(src)[0][(xoff)+(yoff)*(m)->i_stride[0]]; \
-    (m)->p_fref[1]/* 水平半像素平面 */ = &(src)[1][(xoff)+(yoff)*(m)->i_stride[0]]; \
-    (m)->p_fref[2]/* 垂直半像素平面 */ = &(src)[2][(xoff)+(yoff)*(m)->i_stride[0]]; \
-    (m)->p_fref[3]/* 对角线半像素平面 */ = &(src)[3][(xoff)+(yoff)*(m)->i_stride[0]]; \
+    (m)->p_fref[0]/* 整像素平面 */ = &(src)[0][(xoff)+(yoff)*(m)->i_stride[0]]; \
+    (m)->p_fref[1]/* 水平1/2像素平面 */ = &(src)[1][(xoff)+(yoff)*(m)->i_stride[0]]; \
+    (m)->p_fref[2]/* 垂直1/2像素平面 */ = &(src)[2][(xoff)+(yoff)*(m)->i_stride[0]]; \
+    (m)->p_fref[3]/* 对角线1/2像素平面 */ = &(src)[3][(xoff)+(yoff)*(m)->i_stride[0]]; \
     (m)->p_fref[4]/* 色度分量U像素平面 */ = &(src)[4][((xoff)>>1)+((yoff)>>1)*(m)->i_stride[1]]; \
     (m)->p_fref[5]/* 色度分量V像素平面 */ = &(src)[5][((xoff)>>1)+((yoff)>>1)*(m)->i_stride[1]]; \
     (m)->integral = &h->mb.pic.p_integral[list][ref][(xoff)+(yoff)*(m)->i_stride[0]];
@@ -1192,7 +1192,7 @@ static void x264_mb_analyse_inter_p16x16( x264_t *h, x264_mb_analysis_t *a )
     LOAD_FENC( &m, h->mb.pic.p_fenc, 0, 0 );
 
     a->l0.me16x16.cost = INT_MAX;
-    for( i_ref = 0; i_ref < h->mb.pic.i_fref[0]; i_ref++ ) // h->mb.pic.i_fref[0]: list0 参考帧的个数 
+    for( i_ref = 0; i_ref < h->mb.pic.i_fref[0]; i_ref++ ) // h->mb.pic.i_fref[0]: list0 参考帧的个数
     {
         const int i_ref_cost = REF_COST( 0, i_ref ); // ref0中各个参考帧的cost
         i_halfpel_thresh -= i_ref_cost;
@@ -1200,10 +1200,10 @@ static void x264_mb_analyse_inter_p16x16( x264_t *h, x264_mb_analysis_t *a )
         m.i_ref = i_ref;
 
         /* search with ref */
-        LOAD_HPELS( &m, h->mb.pic.p_fref[0][i_ref], 0, i_ref, 0, 0 ); // 计算出1/2像素
+        LOAD_HPELS( &m, h->mb.pic.p_fref[0][i_ref], 0, i_ref, 0, 0 ); // 装载整数和1/2像素平面
         x264_mb_predict_mv_16x16( h, 0, i_ref, m.mvp );               // MVP由"当前宏块周边已编码的宏块"来决定
-        x264_mb_predict_mv_ref16x16( h, 0, i_ref, mvc, &i_mvc );      // MVC由相应于此宏块周围的参考帧宏块, 将他们的MV放入MVC
-        x264_me_search_ref( h, &m, mvc, i_mvc, p_halfpel_thresh );    // 
+        x264_mb_predict_mv_ref16x16( h, 0, i_ref, mvc, &i_mvc );      // MVC由相应于此宏块周围的"参考帧宏块", 将他们的MV放入MVC
+        x264_me_search_ref( h, &m, mvc, i_mvc, p_halfpel_thresh );    // ** 真正的帧间预测实体
 
         /* early termination
          * SSD threshold would probably be better than SATD */
@@ -1228,7 +1228,7 @@ static void x264_mb_analyse_inter_p16x16( x264_t *h, x264_mb_analysis_t *a )
 
         /* save mv for predicting neighbors */
         *(uint32_t*)a->l0.mvc[i_ref][0] =
-        *(uint32_t*)h->mb.mvr[0][i_ref][h->mb.i_mb_xy] = *(uint32_t*)m.mv;
+        *(uint32_t*)h->mb.mvr[0][i_ref][h->mb.i_mb_xy] = *(uint32_t*)m.mv; // 保存每个参考帧的MV
     }
 
     x264_macroblock_cache_ref( h, 0, 0, 4, 4, 0, a->l0.me16x16.i_ref );
@@ -2411,9 +2411,9 @@ void x264_macroblock_analyse( x264_t *h )
             int i_thresh16x8;
             int i_satd_inter, i_satd_intra;
 
-            x264_mb_analyse_load_costs( h, &analysis );
+            x264_mb_analyse_load_costs( h, &analysis );   // 装载MV的cost值和...
 
-            x264_mb_analyse_inter_p16x16( h, &analysis );
+            x264_mb_analyse_inter_p16x16( h, &analysis ); // 开始帧间16x16宏块预测
 
             if( h->mb.i_type == P_SKIP )
                 return;

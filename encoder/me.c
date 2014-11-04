@@ -217,7 +217,8 @@ void x264_me_search_ref( x264_t *h, x264_me_t *m, int16_t (*mvc)[2], int i_mvc, 
     if( h->mb.i_subpel_refine >= 3 )
     {
         uint32_t bmv = pack16to32_mask(bmx,bmy);
-        COST_MV_HPEL( bmx, bmy );    // 以MVP偏移先做一次帧内预测
+		// 选择最佳起始点(开始)
+        COST_MV_HPEL( bmx, bmy );    // 以MVP偏移先做一次帧间预测
         for( i = 0; i < i_mvc; i++ ) // 对此宏块相应在参考帧周边的宏块MVs进行预测
         {
             if( *(uint32_t*)mvc[i] && (bmv - *(uint32_t*)mvc[i]) ) // mvc[i] 和 mvp不是同一个MV
@@ -227,9 +228,10 @@ void x264_me_search_ref( x264_t *h, x264_me_t *m, int16_t (*mvc)[2], int i_mvc, 
                 COST_MV_HPEL( mx, my );
             }
         }
-        bmx = ( bpred_mx + 2 ) >> 2; // 变为整像素?
+		// 选择最佳起始点(结束)
+        bmx = ( bpred_mx + 2 ) >> 2; // 把最佳起始点变为整像素?
         bmy = ( bpred_my + 2 ) >> 2;
-        COST_MV( bmx, bmy ); // 对上面的最整像素再做一次预测
+        COST_MV( bmx, bmy ); // 对最佳起始点做一次预测
     }
     else
     {
