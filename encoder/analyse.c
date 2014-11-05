@@ -923,7 +923,7 @@ static void x264_mb_analyse_intra( x264_t *h, x264_mb_analysis_t *a, int i_satd_
             }
             i_cost += i_best;
 
-            if( i_cost > i_satd_thresh || idx == 15 ) // 计算出的cost已经大于16x16_cost, 那么不用再继续了
+            if( i_cost > i_satd_thresh || idx == 15 ) // 计算出来的cost值是否已经大于之前的thresh || 计算完所有4x4宏块还都<=thresh
                 break;
 
             /* we need to encode this block now (for next ones) */
@@ -1192,7 +1192,7 @@ static void x264_mb_analyse_inter_p16x16( x264_t *h, x264_mb_analysis_t *a )
     LOAD_FENC( &m, h->mb.pic.p_fenc, 0, 0 );
 
     a->l0.me16x16.cost = INT_MAX;
-    for( i_ref = 0; i_ref < h->mb.pic.i_fref[0]; i_ref++ ) // h->mb.pic.i_fref[0]: list0 参考帧的个数
+    for( i_ref = 0; i_ref < h->mb.pic.i_fref[0]; i_ref++ ) // h->mb.pic.i_fref[0]: list0 参考帧的个数 
     {
         const int i_ref_cost = REF_COST( 0, i_ref ); // ref0中各个参考帧的cost
         i_halfpel_thresh -= i_ref_cost;
