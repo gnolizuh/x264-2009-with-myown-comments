@@ -1706,7 +1706,8 @@ static float rate_estimate_qscale( x264_t *h, int overhead )
              * tradeoff between quality and bitrate precision. But at large
              * tolerances, the bit distribution approaches that of 2pass. */
 
-			/* 计算需要的平均比特率.然后根据当前帧的复杂度和平均复杂度的差值, 调
+			/* 
+			 * 计算需要的平均比特率.然后根据当前帧的复杂度和平均复杂度的差值, 调
 			 * 整量化参数.如果离目标大小还有差距, 那么再调整量化值.
 			 * 结果: 调整rate_tolerance的值来权衡质量和比特率的比例. 在最大忍受
 			 * 值的情况下, 编码比特的分配接近于2pass.

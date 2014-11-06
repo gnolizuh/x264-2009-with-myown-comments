@@ -337,10 +337,14 @@ void x264_frame_init_lowres( x264_t *h, x264_frame_t *frame )
 }
 
 // A00   A01   A02   A03   A04
-//     *     *     *     *
+//     0     h     0     h
 // A10   A11   A12   A13   A14
-//     *     *     *     *
+//     v     c     v     c
 // A20   A21   A22   A23   A24
+//     0     h     0     h
+// A30   A31   A32   A33   A34
+//     v     c     v     c
+// A40   A41   A42   A43   A44
 // 不包括最后一行和最后一列
 static void frame_init_lowres_core( uint8_t *src0, uint8_t *dst0, uint8_t *dsth, uint8_t *dstv, uint8_t *dstc,
                                     int src_stride, int dst_stride, int width, int height )
