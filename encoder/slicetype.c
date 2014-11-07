@@ -267,6 +267,9 @@ lowres_intra_mb:
    (h->sps->i_mb_width - 2) * (h->sps->i_mb_height - 2) :\
     h->sps->i_mb_width * h->sps->i_mb_height)
 
+// 预估此帧的复杂度(SSD其实是最佳选择, 但是需要等到重建后才能计算, 显然太慢了)。
+// 这里计算的是SATD值，用于代替略微复杂的SSD。
+// 估计完此帧的复杂度之后，最终转换成此帧的QP值。(当然必须是非CQP流控模式)
 static int x264_slicetype_frame_cost( x264_t *h, x264_mb_analysis_t *a,
                                x264_frame_t **frames, int p0, int p1, int b,
                                int b_intra_penalty )
