@@ -1738,7 +1738,7 @@ int     x264_encoder_encode( x264_t *h,
 	{
 		// 1. 先决定待编码帧的类型(根据GOP决定是否是IDR帧.. 根据Profile决定是B帧还是P帧)
 		// 2. 根据next链表中的待编码帧s(如帧序为BBP, 应先编码P帧), 重排到到current链表
-        x264_lookahead_get_frames( h ); // 流控部分,如果不是X264_RC_CQP: x264_lookahead_get_frames -> x264_slicetype_decide -> x264_slicetype_frame_cost 计算
+        x264_lookahead_get_frames( h ); // 流控部分,如果不是X264_RC_CQP: x264_lookahead_get_frames -> x264_slicetype_decide -> x264_slicetype_frame_cost 计算此帧SATD值
 	}
 
     if( !h->frames.current[0] && x264_lookahead_is_empty( h ) )

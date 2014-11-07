@@ -962,8 +962,8 @@ void x264_slicetype_decide( x264_t *h )
             p1 = b = 0;           // 如果next链表里最后一个是I帧
         else
             p1 = b = bframes + 1; // 如果next链表里最后一个是P帧
-        frames[p0] = h->lookahead->last_nonb;
-        frames[b] = h->lookahead->next.list[bframes];
+        frames[p0] = h->lookahead->last_nonb;          // 前一个已编码帧
+        frames[b] = h->lookahead->next.list[bframes];  // 当前待编码帧
 
 		// if I帧 then frames里只有当前的I帧
 		// if P帧 then frames里[nonb-frame][nul]...[p-frame]
@@ -978,7 +978,7 @@ int x264_rc_analyse_slice( x264_t *h )
     int p0=0, p1, b;
     int cost;
 
-    if( IS_X264_TYPE_I(h->fenc->i_type) ) // 此时帧类型已经决定
+    if( IS_X264_TYPE_I(h->fenc->i_type) ) // 如果当前帧是I帧
         p1 = b = 0;
     else // P
         p1 = b = h->fenc->i_bframes + 1;
@@ -986,7 +986,7 @@ int x264_rc_analyse_slice( x264_t *h )
     frames[b] = h->fenc;
 
     /* cost should have been already calculated by x264_slicetype_decide */
-    cost = frames[b]->i_cost_est[b-p0][p1-b];
+    cost = frames[b]->i_cost_est[b-p0][p1-b]; // 当前编码帧的satd_cost
     assert( cost >= 0 );
 
     if( h->param.rc.b_mb_tree && !h->param.rc.b_stat_read )
