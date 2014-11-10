@@ -971,7 +971,7 @@ void x264_slicetype_decide( x264_t *h )
     }
 }
 
-/* 计算当前帧的复杂度 */
+/* 计算当前帧的复杂度satd */
 int x264_rc_analyse_slice( x264_t *h )
 {
     x264_frame_t *frames[X264_BFRAME_MAX+2] = { NULL, };

@@ -262,10 +262,10 @@ void x264_lookahead_get_frames( x264_t *h )
         while( IS_X264_TYPE_B( h->lookahead->next.list[bframes]->i_type ) )
             bframes++;
 
-        x264_lookahead_update_last_nonb( h, h->lookahead->next.list[bframes] );         // 更新最后一个非B帧
-        x264_lookahead_shift( &h->lookahead->ofbuf, &h->lookahead->next, bframes + 1 ); // 决策结束, 将next链表里的帧全部弹出到ofbuf链表里, ofbuf长度可能>1(因为可能会有B帧)
+        x264_lookahead_update_last_nonb( h, h->lookahead->next.list[bframes] );         // next链表[BBBP] P --> last_nonb
+        x264_lookahead_shift( &h->lookahead->ofbuf, &h->lookahead->next, bframes + 1 ); // next链表[    ] ofbuf[BBBP] 决策结束, 将next链表里的帧全部弹出到ofbuf链表里, ofbuf长度可能>1(因为可能会有B帧)
 
-        /* For MB-tree and VBV lookahead, we have to perform propagation analysis on I-frames too. */
+        /* For MB-tree and VBV(Video buffering verifier) lookahead, we have to perform propagation analysis on I-frames too. */
         if( h->lookahead->b_analyse_keyframe && IS_X264_TYPE_I( h->lookahead->last_nonb->i_type ) )
             x264_stack_align( x264_slicetype_analyse, h, 1 );
 
