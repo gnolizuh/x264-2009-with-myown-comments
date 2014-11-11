@@ -210,7 +210,7 @@ static void x264_lookahead_encoder_shift( x264_t *h )
     int bframes  = 0;
     int i_frames = 0;
 
-    while( h->lookahead->ofbuf.list[i_frames] )
+    while( h->lookahead->ofbuf.list[i_frames] ) // ofbufÁ´±í[BBBP]
     {
         if( IS_X264_TYPE_B( h->lookahead->ofbuf.list[bframes]->i_type ) )
             bframes++;
