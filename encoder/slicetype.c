@@ -40,20 +40,21 @@ static void x264_lowres_context_init( x264_t *h, x264_mb_analysis_t *a )
 }
 
 static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
-                            x264_frame_t **frames, int p0, int p1, int b,
+							x264_frame_t **frames, int p0/*前向索引*/, int p1/*后向索引*/, int b/*当前索引*/,
                             int dist_scale_factor, int do_search[2] )
 {
     x264_frame_t *fref0 = frames[p0];
     x264_frame_t *fref1 = frames[p1];
     x264_frame_t *fenc  = frames[b];
-    const int b_bidir = (b < p1);
-    const int i_mb_x = h->mb.i_mb_x;
-    const int i_mb_y = h->mb.i_mb_y;
-    const int i_mb_stride = h->sps->i_mb_width;
-    const int i_mb_xy = i_mb_x + i_mb_y * i_mb_stride;
-    const int i_stride = fenc->i_stride_lowres;
+    const int b_bidir = (b < p1);      // 是否进行后向参考, 也就是当前帧是否是B帧
+    const int i_mb_x = h->mb.i_mb_x;   // 预测宏块的X坐标
+    const int i_mb_y = h->mb.i_mb_y;   // 预测宏块的Y坐标
+    const int i_mb_stride = h->sps->i_mb_width;         // 以宏块为单位的宽度
+    const int i_mb_xy = i_mb_x + i_mb_y * i_mb_stride;  // 二维坐标转换到一维坐标
+    const int i_stride = fenc->i_stride_lowres;         // 待编码sub-pixel平面的跨度
     const int i_pel_offset = 8 * ( i_mb_x + i_mb_y * i_stride );
-    const int i_bipred_weight = h->param.analyse.b_weighted_bipred ? 64 - (dist_scale_factor>>2) : 32;
+    const int i_bipred_weight = h->param.analyse.b_weighted_bipred ? 64 - (dist_scale_factor>>2) : 32; // 双向预测权重
+	// [0][b-p0-1]: 前向预测帧的索引 [1][p1-b-1]： 后向预测帧的索引
     int16_t (*fenc_mvs[2])[2] = { &frames[b]->lowres_mvs[0][b-p0-1][i_mb_xy], &frames[b]->lowres_mvs[1][p1-b-1][i_mb_xy] };
     int (*fenc_costs[2]) = { &frames[b]->lowres_mv_costs[0][b-p0-1][i_mb_xy], &frames[b]->lowres_mv_costs[1][p1-b-1][i_mb_xy] };
 
@@ -65,17 +66,19 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
     int list_used = 0;
 
     h->mb.pic.p_fenc[0] = h->mb.pic.fenc_buf;
-    h->mc.copy[PIXEL_8x8]( h->mb.pic.p_fenc[0], FENC_STRIDE, &fenc->lowres[0][i_pel_offset], i_stride, 8 ); // 1/2像素Origin平面
+    h->mc.copy[PIXEL_8x8]( h->mb.pic.p_fenc[0], FENC_STRIDE, &fenc->lowres[0][i_pel_offset], i_stride, 8 ); // 拷贝1/2像素Origin平面(8x8)
 
-    if( p0 == p1 )
+    if( p0 == p1 ) // 前向索引=后向索引, 则进行I帧处理
         goto lowres_intra_mb;
 
     // no need for h->mb.mv_min[]
+	// 设置前向全像素预测范围
     h->mb.mv_min_fpel[0] = -8*h->mb.i_mb_x - 4;
     h->mb.mv_max_fpel[0] = 8*( h->sps->i_mb_width - h->mb.i_mb_x - 1 ) + 4;
+	// 设置前向半像素预测范围
     h->mb.mv_min_spel[0] = 4*( h->mb.mv_min_fpel[0] - 8 );
     h->mb.mv_max_spel[0] = 4*( h->mb.mv_max_fpel[0] + 8 );
-    if( h->mb.i_mb_x >= h->sps->i_mb_width - 2 )
+    if( h->mb.i_mb_x >= h->sps->i_mb_width - 2 ) // 如果当前宏块是倒数1,2列, 设置后向预测范围
     {
         h->mb.mv_min_fpel[1] = -8*h->mb.i_mb_y - 4;
         h->mb.mv_max_fpel[1] = 8*( h->sps->i_mb_height - h->mb.i_mb_y - 1 ) + 4;
@@ -114,7 +117,7 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
     m[0].p_cost_mv = a->p_cost_mv;
     m[0].i_stride[0] = i_stride;
     m[0].p_fenc[0] = h->mb.pic.p_fenc[0];
-    LOAD_HPELS_LUMA( m[0].p_fref, fref0->lowres );
+    LOAD_HPELS_LUMA( m[0].p_fref, fref0->lowres ); // 装载前向半像素平面
 
     if( b_bidir )
     {
