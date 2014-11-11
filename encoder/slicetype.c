@@ -65,7 +65,7 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
     int list_used = 0;
 
     h->mb.pic.p_fenc[0] = h->mb.pic.fenc_buf;
-    h->mc.copy[PIXEL_8x8]( h->mb.pic.p_fenc[0], FENC_STRIDE, &fenc->lowres[0][i_pel_offset], i_stride, 8 );
+    h->mc.copy[PIXEL_8x8]( h->mb.pic.p_fenc[0], FENC_STRIDE, &fenc->lowres[0][i_pel_offset], i_stride, 8 ); // 1/2ÏñËØOriginÆ½Ãæ
 
     if( p0 == p1 )
         goto lowres_intra_mb;

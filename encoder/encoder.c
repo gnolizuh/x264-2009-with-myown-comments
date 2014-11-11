@@ -1119,7 +1119,7 @@ static inline void x264_reference_build_list( x264_t *h, int i_poc )
         {
             if( h->fref0[i]->i_poc < h->fref0[i+1]->i_poc )
             {
-                XCHG( x264_frame_t*, h->fref0[i], h->fref0[i+1] );
+                XCHG( x264_frame_t*, h->fref0[i], h->fref0[i+1] ); // list0 idx0->n : 离当前帧越近的->越远的
                 b_ok = 0;
                 break;
             }
@@ -1133,7 +1133,7 @@ static inline void x264_reference_build_list( x264_t *h, int i_poc )
         {
             if( h->fref1[i]->i_poc > h->fref1[i+1]->i_poc )
             {
-                XCHG( x264_frame_t*, h->fref1[i], h->fref1[i+1] );
+                XCHG( x264_frame_t*, h->fref1[i], h->fref1[i+1] ); // list1 idx0->n : 离当前帧越近的->越远的
                 b_ok = 0;
                 break;
             }
