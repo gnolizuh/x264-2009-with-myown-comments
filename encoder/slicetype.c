@@ -78,7 +78,7 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
 	// 设置前向半像素预测范围
     h->mb.mv_min_spel[0] = 4*( h->mb.mv_min_fpel[0] - 8 );
     h->mb.mv_max_spel[0] = 4*( h->mb.mv_max_fpel[0] + 8 );
-    if( h->mb.i_mb_x >= h->sps->i_mb_width - 2 ) // 如果当前宏块是倒数1,2列, 设置后向预测范围
+    if( h->mb.i_mb_x >= h->sps->i_mb_width - 2 ) // 如果当前宏块是倒数1,2列, 设置后向预测范围. 为什么倒数1,2行的时候不这么做?
     {
         h->mb.mv_min_fpel[1] = -8*h->mb.i_mb_y - 4;
         h->mb.mv_max_fpel[1] = 8*( h->sps->i_mb_height - h->mb.i_mb_y - 1 ) + 4;
@@ -104,12 +104,12 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
         uint8_t *src1, *src2; \
         int i_cost; \
         src1 = h->mc.get_ref( pix1, &stride1, m[0].p_fref, m[0].i_stride[0], \
-                              (mv0)[0], (mv0)[1], 8, 8 ); \
+                              (mv0)[0], (mv0)[1], 8, 8 ); /*前向预测出8x8宏块src1*/ \
         src2 = h->mc.get_ref( pix2, &stride2, m[1].p_fref, m[1].i_stride[0], \
-                              (mv1)[0], (mv1)[1], 8, 8 ); \
-        h->mc.avg[PIXEL_8x8]( pix1, 16, src1, stride1, src2, stride2, i_bipred_weight ); \
+                              (mv1)[0], (mv1)[1], 8, 8 ); /*后向预测出8x8宏块src2*/ \
+        h->mc.avg[PIXEL_8x8]( pix1, 16, src1, stride1, src2, stride2, i_bipred_weight ); /*根据src1和src2中值计算出pix1*/ \
         i_cost = penalty + h->pixf.mbcmp[PIXEL_8x8]( \
-                           m[0].p_fenc[0], FENC_STRIDE, pix1, 16 ); \
+                           m[0].p_fenc[0], FENC_STRIDE, pix1, 16 ); /*计算原像素和pix1的残差cost*/\
         COPY2_IF_LT( i_bcost, i_cost, list_used, 3 ); \
     }
 
@@ -134,8 +134,8 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
         CLIP_MV( dmv[0] );
         CLIP_MV( dmv[1] );
 
-        TRY_BIDIR( dmv[0], dmv[1], 0 );
-        if( dmv[0][0] | dmv[0][1] | dmv[1][0] | dmv[1][1] )
+        TRY_BIDIR( dmv[0], dmv[1], 0 );                     // 双向直接预测, 也就是对B帧直接预测
+        if( dmv[0][0] | dmv[0][1] | dmv[1][0] | dmv[1][1] ) // 如果mv都不为0, 预测当前位置
         {
             int i_cost;
             h->mc.avg[PIXEL_8x8]( pix1, 16, m[0].p_fref[0], m[0].i_stride[0], m[1].p_fref[0], m[1].i_stride[0], i_bipred_weight );
