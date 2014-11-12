@@ -87,6 +87,7 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
         h->mb.mv_max_spel[1] = 4*( h->mb.mv_max_fpel[1] + 8 );
     }
 
+// 装载1/2像素各个平面(原, 水平, 垂直, 对角线)
 #define LOAD_HPELS_LUMA(dst, src) \
     { \
         (dst)[0] = &(src)[0][i_pel_offset]; \
@@ -94,11 +95,18 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
         (dst)[2] = &(src)[2][i_pel_offset]; \
         (dst)[3] = &(src)[3][i_pel_offset]; \
     }
+
+// mv不能超过搜索范围
 #define CLIP_MV( mv ) \
     { \
         mv[0] = x264_clip3( mv[0], h->mb.mv_min_spel[0], h->mb.mv_max_spel[0] ); \
         mv[1] = x264_clip3( mv[1], h->mb.mv_min_spel[1], h->mb.mv_max_spel[1] ); \
     }
+
+// NOTES>> 用亮度块代替整个宏块的复杂度
+// src1/2: 分别以mv前/后向偏移得到的8x8块
+// pix1: src1和src2的中值块
+// h->pixf.mbcmp[PIXEL_8x8]: 计算8x8块的SATD值
 #define TRY_BIDIR( mv0, mv1, penalty ) \
     { \
         int stride1 = 16, stride2 = 16; \
@@ -120,7 +128,7 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
     m[0].p_fenc[0] = h->mb.pic.p_fenc[0];
     LOAD_HPELS_LUMA( m[0].p_fref, fref0->lowres ); // 装载{前向参考帧}的半像素平面
 
-    if( b_bidir )
+    if( b_bidir ) // 如果是B帧
     {
         int16_t *mvr = fref1->lowres_mvs[0][p1-p0-1][i_mb_xy]; // 后向参考帧 的 前向参考帧 对应i_mb_xy的宏块
         int dmv[2][2];
@@ -171,7 +179,7 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
             }
 #undef MVC
             x264_median_mv( m[l].mvp, mvc[0], mvc[1], mvc[2] ); // 中值预测MV
-            x264_me_search( h, &m[l], mvc, i_mvc );             // ** 这里只计算SATD_cost **, 应该是为了rate_control
+            x264_me_search( h, &m[l], mvc, i_mvc );             // ** 这里只计算最小SATD_cost **, 应该是为了rate_control
 
             m[l].cost -= 2; // remove mvcost from skip mbs
             if( *(uint32_t*)m[l].mv )
@@ -197,7 +205,7 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
 lowres_intra_mb:
     /* forbid intra-mbs in B-frames, because it's rare and not worth checking */
     /* FIXME: Should we still forbid them now that we cache intra scores? */
-    if( !b_bidir || h->param.rc.b_mb_tree )
+    if( !b_bidir || h->param.rc.b_mb_tree ) // 帧内计算SATD
     {
         int i_icost, b_intra;
         if( !fenc->b_intra_calculated )
