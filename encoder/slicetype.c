@@ -184,7 +184,7 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
             m[l].cost -= 2; // remove mvcost from skip mbs
             if( *(uint32_t*)m[l].mv )
                 m[l].cost += 5;
-            *(uint32_t*)fenc_mvs[l] = *(uint32_t*)m[l].mv; // 使用预测后得到的MV
+            *(uint32_t*)fenc_mvs[l] = *(uint32_t*)m[l].mv; // 更新预测后得到的MV
             *fenc_costs[l] = m[l].cost;
         }
         else // 不用预测了
@@ -734,16 +734,16 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
         return;
     frames[0] = h->lookahead->last_nonb;
     for( j = 0; j < i_max_search && h->lookahead->next.list[j]->i_type == X264_TYPE_AUTO; j++ )
-        frames[j+1] = h->lookahead->next.list[j];
+        frames[j+1] = h->lookahead->next.list[j]; // frames[0]是nonb帧, 其他是待编码帧
 
     if( !j )
         return;
 
-    keyint_limit = h->param.i_keyint_max - frames[0]->i_frame + h->lookahead->i_last_idr - 1;
-    num_frames = X264_MIN( j, keyint_limit );
+    keyint_limit = h->param.i_keyint_max - frames[0]->i_frame + h->lookahead->i_last_idr - 1; // 除了frames[0]最多可容纳多少帧
+    num_frames = X264_MIN( j, keyint_limit ); // 总帧数
 
     x264_lowres_context_init( h, &a );
-    idr_frame_type = frames[1]->i_frame - h->lookahead->i_last_idr >= h->param.i_keyint_min ? X264_TYPE_IDR : X264_TYPE_I;
+    idr_frame_type = frames[1]->i_frame - h->lookahead->i_last_idr >= h->param.i_keyint_min ? X264_TYPE_IDR : X264_TYPE_I; // 是IDR还是I帧
 
     /* This is important psy-wise: if we have a non-scenecut keyframe,
      * there will be significant visual artifacts if the frames just before
@@ -768,13 +768,13 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
     max_bframes = X264_MIN(num_frames-1, h->param.i_bframe);
     num_analysed_frames = num_frames;
 
-    if( h->param.i_scenecut_threshold && scenecut( h, &a, frames, 0, 1, 1 ) )
+    if( h->param.i_scenecut_threshold && scenecut( h, &a, frames, 0, 1, 1 ) ) // frames[1]以frames[0]为参考帧作P预测。是否要产生一个I帧(场景变化太大)
     {
         frames[1]->i_type = idr_frame_type;
         return;
     }
 
-    if( h->param.i_bframe )
+    if( h->param.i_bframe ) // 判断可否有B帧
     {
         if( h->param.i_bframe_adaptive == X264_B_ADAPT_TRELLIS )
         {
@@ -792,12 +792,12 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
         }
         else if( h->param.i_bframe_adaptive == X264_B_ADAPT_FAST )
         {
-			// [FXXXX]
+			// 确定frames[1-N]的类型(P or B)
             for( i = 0; i < num_frames-(2-!i); )
             {
 				// [FX*XX] -> [FXFXX]
-                cost2p1 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+2, i+2, 1 ); // 当前P帧[2] 前-2 后+0
-                if( frames[i+2]->i_intra_mbs[2] > i_mb_count / 2 )
+                cost2p1 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+2, i+2, 1 ); // 当前P帧[i+2] 前-2 后+0
+                if( frames[i+2]->i_intra_mbs[2] > i_mb_count / 2 ) // 当前P帧[i+2]以帧[i]预测后,产生的帧內宏块数量太多(场景变化太大)
                 {
                     frames[i+1]->i_type = X264_TYPE_P;
                     frames[i+2]->i_type = X264_TYPE_P;
@@ -806,9 +806,9 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
                 }
 
 				// [F*FXX] -> [FFFXX]
-                cost1b1 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+2, i+1, 0 );  // 当前B帧[1] 前-1 后+1
-                cost1p0 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+1, i+1, 0 );  // 当前P帧[1] 前-1 后+0
-                cost2p0 = x264_slicetype_frame_cost( h, &a, frames, i+1, i+2, i+2, 0 );  // 当前P帧[2] 前-1 后+0
+                cost1b1 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+2, i+1, 0 );  // 当前B帧[i+1] 前-1 后+1
+                cost1p0 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+1, i+1, 0 );  // 当前P帧[i+1] 前-1 后+0
+                cost2p0 = x264_slicetype_frame_cost( h, &a, frames, i+1, i+2, i+2, 0 );  // 当前P帧[i+2] 前-1 后+0
 
                 if( cost1p0 + cost2p0 < cost1b1 + cost2p1 ) // 连续两帧a1,a2: 都用P预测的sum_cost < a1用B预测+a2用P预测的sum_cost
                 {
@@ -862,7 +862,7 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
                 break;
             }
 
-        reset_start = keyframe ? 1 : X264_MIN( num_bframes+2, num_analysed_frames+1 );
+        reset_start = keyframe ? 1 : X264_MIN( num_bframes+2, num_analysed_frames+1 ); // reset_start之后的帧重置为X264_TYPE_AUTO
     }
     else
     {
