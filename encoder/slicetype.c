@@ -54,7 +54,8 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
     const int i_stride = fenc->i_stride_lowres;         // 待编码sub-pixel平面的跨度
     const int i_pel_offset = 8 * ( i_mb_x + i_mb_y * i_stride );
     const int i_bipred_weight = h->param.analyse.b_weighted_bipred ? 64 - (dist_scale_factor>>2) : 32; // 双向预测权重
-	// [0][b-p0-1]: 前向预测帧的索引 [1][p1-b-1]： 后向预测帧的索引
+	// [0][b-p0-1][i_mb_xy]: 前向预测宏块的索引 [1][p1-b-1][i_mb_xy]: 后向预测宏块的索引
+	// fenc_mvs: 前后参考帧位置i_mb_xy的宏块mv
     int16_t (*fenc_mvs[2])[2] = { &frames[b]->lowres_mvs[0][b-p0-1][i_mb_xy], &frames[b]->lowres_mvs[1][p1-b-1][i_mb_xy] };
     int (*fenc_costs[2]) = { &frames[b]->lowres_mv_costs[0][b-p0-1][i_mb_xy], &frames[b]->lowres_mv_costs[1][p1-b-1][i_mb_xy] };
 
@@ -117,16 +118,17 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
     m[0].p_cost_mv = a->p_cost_mv;
     m[0].i_stride[0] = i_stride;
     m[0].p_fenc[0] = h->mb.pic.p_fenc[0];
-    LOAD_HPELS_LUMA( m[0].p_fref, fref0->lowres ); // 装载前向半像素平面
+    LOAD_HPELS_LUMA( m[0].p_fref, fref0->lowres ); // 装载{前向参考帧}的半像素平面
 
     if( b_bidir )
     {
-        int16_t *mvr = fref1->lowres_mvs[0][p1-p0-1][i_mb_xy];
+        int16_t *mvr = fref1->lowres_mvs[0][p1-p0-1][i_mb_xy]; // 后向参考帧 的 前向参考帧 对应i_mb_xy的宏块
         int dmv[2][2];
 
         h->mc.memcpy_aligned( &m[1], &m[0], sizeof(x264_me_t) );
-        LOAD_HPELS_LUMA( m[1].p_fref, fref1->lowres );
+        LOAD_HPELS_LUMA( m[1].p_fref, fref1->lowres ); // 装载{后向参考帧}的半像素平面
 
+		// 根据dist_scale_factor计算出一组双向MV
         dmv[0][0] = ( mvr[0] * dist_scale_factor + 128 ) >> 8;
         dmv[0][1] = ( mvr[1] * dist_scale_factor + 128 ) >> 8;
         dmv[1][0] = dmv[0][0] - mvr[0];
@@ -134,8 +136,8 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
         CLIP_MV( dmv[0] );
         CLIP_MV( dmv[1] );
 
-        TRY_BIDIR( dmv[0], dmv[1], 0 );                     // 双向直接预测, 也就是对B帧直接预测
-        if( dmv[0][0] | dmv[0][1] | dmv[1][0] | dmv[1][1] ) // 如果mv都不为0, 预测当前位置
+        TRY_BIDIR( dmv[0], dmv[1], 0 );                     // 根据这组MV计算双向预测cost
+        if( dmv[0][0] | dmv[0][1] | dmv[1][0] | dmv[1][1] ) // 如果mv都不为0, 以 前后向参考帧的第一个8x8宏块预测
         {
             int i_cost;
             h->mc.avg[PIXEL_8x8]( pix1, 16, m[0].p_fref[0], m[0].i_stride[0], m[1].p_fref[0], m[1].i_stride[0], i_bipred_weight );
@@ -149,7 +151,7 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
         if( do_search[l] )
         {
             int i_mvc = 0;
-            int16_t (*fenc_mv)[2] = fenc_mvs[l];
+            int16_t (*fenc_mv)[2] = fenc_mvs[l]; // 每个参考帧中每个宏块的MV
             ALIGNED_4( int16_t mvc[4][2] );
 
             /* Reverse-order MV prediction. */
@@ -168,19 +170,19 @@ static int x264_slicetype_mb_cost( x264_t *h, x264_mb_analysis_t *a,
                     MVC(fenc_mv[i_mb_stride+1]);
             }
 #undef MVC
-            x264_median_mv( m[l].mvp, mvc[0], mvc[1], mvc[2] );
-            x264_me_search( h, &m[l], mvc, i_mvc );
+            x264_median_mv( m[l].mvp, mvc[0], mvc[1], mvc[2] ); // 中值预测MV
+            x264_me_search( h, &m[l], mvc, i_mvc );             // ** 这里只计算SATD_cost **, 应该是为了rate_control
 
             m[l].cost -= 2; // remove mvcost from skip mbs
             if( *(uint32_t*)m[l].mv )
                 m[l].cost += 5;
-            *(uint32_t*)fenc_mvs[l] = *(uint32_t*)m[l].mv;
+            *(uint32_t*)fenc_mvs[l] = *(uint32_t*)m[l].mv; // 使用预测后得到的MV
             *fenc_costs[l] = m[l].cost;
         }
-        else
+        else // 不用预测了
         {
-            *(uint32_t*)m[l].mv = *(uint32_t*)fenc_mvs[l];
-            m[l].cost = *fenc_costs[l];
+            *(uint32_t*)m[l].mv = *(uint32_t*)fenc_mvs[l]; // 直接使用参考帧的MV
+            m[l].cost = *fenc_costs[l];                    // 直接使用参考帧的MV_cost
         }
         COPY2_IF_LT( i_bcost, m[l].cost, list_used, l+1 );
     }
@@ -259,7 +261,7 @@ lowres_intra_mb:
         }
     }
 
-    fenc->lowres_costs[b-p0][p1-b][i_mb_xy] = i_bcost;
+    fenc->lowres_costs[b-p0][p1-b][i_mb_xy] = i_bcost; // i_mb_xy位置的宏块, 前向参考p0, 后向参考p1时的cost值
 
     return i_bcost;
 }
@@ -974,7 +976,7 @@ void x264_slicetype_decide( x264_t *h )
     }
 }
 
-/* 计算当前帧的复杂度satd */
+/* 计算当前帧的复杂度SATD */
 int x264_rc_analyse_slice( x264_t *h )
 {
     x264_frame_t *frames[X264_BFRAME_MAX+2] = { NULL, };
