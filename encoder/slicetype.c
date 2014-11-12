@@ -667,6 +667,7 @@ static void x264_slicetype_path( x264_t *h, x264_mb_analysis_t *a, x264_frame_t 
     memcpy( best_paths[length], paths[best_path_index], length );
 }
 
+// 当前帧是否不适合帧间预测(SATD太大意味着不适合帧间预测, 而应该产生一个I帧/IDR帧)
 static int scenecut( x264_t *h, x264_mb_analysis_t *a, x264_frame_t **frames, int p0, int p1, int print )
 {
 	float f_bias;
@@ -675,10 +676,10 @@ static int scenecut( x264_t *h, x264_mb_analysis_t *a, x264_frame_t **frames, in
 	float f_thresh_max, f_thresh_min;
 
     x264_frame_t *frame = frames[p1];
-    x264_slicetype_frame_cost( h, a, frames, p0, p1, p1, 0 );
+    x264_slicetype_frame_cost( h, a, frames, p0, p1, p1, 0 ); // 对带编码帧作"前向帧间SATD计算" 和 "帧内SATD计算"
 
-    icost = frame->i_cost_est[0][0];
-    pcost = frame->i_cost_est[p1-p0][0];
+    icost = frame->i_cost_est[0][0];     // 当前帧SATD_cost
+    pcost = frame->i_cost_est[p1-p0][0]; // 前向参考帧的SATD_cost
     
     i_gop_size = frame->i_frame - h->lookahead->i_last_idr;
     f_thresh_max = h->param.i_scenecut_threshold / 100.0;
@@ -791,9 +792,11 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
         }
         else if( h->param.i_bframe_adaptive == X264_B_ADAPT_FAST )
         {
+			// [FXXXX]
             for( i = 0; i < num_frames-(2-!i); )
             {
-                cost2p1 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+2, i+2, 1 );
+				// [FX*XX] -> [FXFXX]
+                cost2p1 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+2, i+2, 1 ); // 当前P帧[2] 前-2 后+0
                 if( frames[i+2]->i_intra_mbs[2] > i_mb_count / 2 )
                 {
                     frames[i+1]->i_type = X264_TYPE_P;
@@ -802,12 +805,14 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
                     continue;
                 }
 
-                cost1b1 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+2, i+1, 0 );
-                cost1p0 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+1, i+1, 0 );
-                cost2p0 = x264_slicetype_frame_cost( h, &a, frames, i+1, i+2, i+2, 0 );
+				// [F*FXX] -> [FFFXX]
+                cost1b1 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+2, i+1, 0 );  // 当前B帧[1] 前-1 后+1
+                cost1p0 = x264_slicetype_frame_cost( h, &a, frames, i+0, i+1, i+1, 0 );  // 当前P帧[1] 前-1 后+0
+                cost2p0 = x264_slicetype_frame_cost( h, &a, frames, i+1, i+2, i+2, 0 );  // 当前P帧[2] 前-1 后+0
 
-                if( cost1p0 + cost2p0 < cost1b1 + cost2p1 )
+                if( cost1p0 + cost2p0 < cost1b1 + cost2p1 ) // 连续两帧a1,a2: 都用P预测的sum_cost < a1用B预测+a2用P预测的sum_cost
                 {
+					// 用P预测更佳
                     frames[i+1]->i_type = X264_TYPE_P;
                     frames[i+2]->i_type = X264_TYPE_P;
                     i += 2;
@@ -823,7 +828,7 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
                 for( j = i+2; j <= X264_MIN( h->param.i_bframe, num_frames-1 ); j++ )
                 {
                     int pthresh = X264_MAX(INTER_THRESH - P_SENS_BIAS * (j-i-1), INTER_THRESH/10);
-                    int pcost = x264_slicetype_frame_cost( h, &a, frames, i+0, j+1, j+1, 1 );
+                    int pcost = x264_slicetype_frame_cost( h, &a, frames, i+0, j+1, j+1, 1 ); // 以lastnonb帧为参考帧, 对frames[i+2]后面的一帧计算SATD
 
                     if( pcost > pthresh*i_mb_count || frames[j+1]->i_intra_mbs[j-i+1] > i_mb_count/3 )
                     {
@@ -835,10 +840,10 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
                 }
                 i = j;
             }
-            frames[i+!i]->i_type = X264_TYPE_P;
+            frames[i+!i]->i_type = X264_TYPE_P; // 如果有B帧, 那么最后一帧必须是P帧
             num_bframes = 0;
             while( num_bframes < num_frames && frames[num_bframes+1]->i_type == X264_TYPE_B )
-                num_bframes++;
+                num_bframes++; // Number of b-frames.
         }
         else
         {
@@ -850,9 +855,9 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
 
         /* Check scenecut on the first minigop. */
         for( j = 1; j < num_bframes+1; j++ )
-            if( h->param.i_scenecut_threshold && scenecut( h, &a, frames, j, j+1, 0 ) )
+            if( h->param.i_scenecut_threshold && scenecut( h, &a, frames, j, j+1, 0 ) ) // 看看要不要场景切换
             {
-                frames[j]->i_type = X264_TYPE_P;
+                frames[j]->i_type = X264_TYPE_P; // B切换成P
                 num_analysed_frames = j;
                 break;
             }

@@ -188,8 +188,8 @@ static void mc_luma( uint8_t *dst,    int i_dst_stride,
 // S S S S S
 // O S H S O
 // Y轴向下, X轴向右
-// (y=0,x=1)需要O和H计算S像素
-// (y=0,x=2)仅需要O
+// S(y=0,x=1)需要O和H计算S像素
+// H(y=0,x=2)仅需要O
 static uint8_t *get_ref( uint8_t *dst,   int *i_dst_stride,
                          uint8_t *src[4], int i_src_stride,
                          int mvx, int mvy,
