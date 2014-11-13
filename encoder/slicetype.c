@@ -634,22 +634,24 @@ static int x264_slicetype_path_cost( x264_t *h, x264_mb_analysis_t *a, x264_fram
 /* Uses strings due to the fact that the speed of the control functions is
    negligable compared to the cost of running slicetype_frame_cost, and because
    it makes debugging easier. */
+
+// char best_paths[N][N]: (char *)best_paths[n]表示当总帧数=n时的最佳类型决策
 static void x264_slicetype_path( x264_t *h, x264_mb_analysis_t *a, x264_frame_t **frames, int length, int max_bframes, char (*best_paths)[X264_LOOKAHEAD_MAX] )
 {
     char paths[X264_BFRAME_MAX+2][X264_LOOKAHEAD_MAX] = {{0}};
-    int num_paths = X264_MIN(max_bframes+1, length);
+    int num_paths = X264_MIN(max_bframes+1, length); // 需要决策帧类型的总帧数 (最多不能超过B帧数目的限制)
     int suffix_size, loc, path;
     int best_cost = COST_MAX;
     int best_path_index = 0;
-    length = X264_MIN(length,X264_LOOKAHEAD_MAX);
+    length = X264_MIN(length,X264_LOOKAHEAD_MAX);    // 整个frames的总帧数
 
-    /* Iterate over all currently possible paths and add suffixes to each one */
+	// 只重新决策best_paths的最后num_paths个路径. 因为前面的已经不能再调整了, 已是最优.
     for( suffix_size = 0; suffix_size < num_paths; suffix_size++ )
     {
-        memcpy( paths[suffix_size], best_paths[length - (suffix_size + 1)], length - (suffix_size + 1) );
+        memcpy( paths[suffix_size], best_paths[length - (suffix_size + 1)], length - (suffix_size + 1) ); // 每次决策一个帧的类型时, 会重新计算所有可能的最佳路径
         for( loc = 0; loc < suffix_size; loc++ )
-            strcat( paths[suffix_size], "B" );
-        strcat( paths[suffix_size], "P" );
+            strcat( paths[suffix_size], "B" ); // 尽量填充B帧直到最多可容忍的值(i_max_bframes)
+        strcat( paths[suffix_size], "P" );     // 每种决策最后帧一定是个P帧
     }
 
     /* Calculate the actual cost of each of the current paths */
@@ -659,12 +661,12 @@ static void x264_slicetype_path( x264_t *h, x264_mb_analysis_t *a, x264_frame_t 
         if( cost < best_cost )
         {
             best_cost = cost;
-            best_path_index = path;
+            best_path_index = path; // 计算每种决策的SATD_cost. 取最佳的!
         }
     }
 
     /* Store the best path. */
-    memcpy( best_paths[length], paths[best_path_index], length );
+    memcpy( best_paths[length], paths[best_path_index], length ); // 总帧数为length时的最佳决策
 }
 
 // 当前帧是否不适合帧间预测(SATD太大意味着不适合帧间预测, 而应该产生一个I帧/IDR帧)
@@ -776,19 +778,19 @@ void x264_slicetype_analyse( x264_t *h, int keyframe )
 
     if( h->param.i_bframe ) // 判断可否有B帧
     {
-        if( h->param.i_bframe_adaptive == X264_B_ADAPT_TRELLIS )
+        if( h->param.i_bframe_adaptive == X264_B_ADAPT_TRELLIS ) //TRELLIS决策算法(较X264_B_ADAPT_FAST要慢)
         {
             /* Perform the frametype analysis. */
             for( n = 2; n < num_frames-1; n++ )
                 x264_slicetype_path( h, &a, frames, n, max_bframes, best_paths );
             if( num_frames > 1 )
             {
-                num_bframes = strspn( best_paths[num_frames-2], "B" );
+                num_bframes = strspn( best_paths[num_frames-2], "B" ); // 检查有多少个B帧
                 /* Load the results of the analysis into the frame types. */
                 for( j = 1; j < num_frames; j++ )
                     frames[j]->i_type = best_paths[num_frames-2][j-1] == 'B' ? X264_TYPE_B : X264_TYPE_P;
             }
-            frames[num_frames]->i_type = X264_TYPE_P;
+            frames[num_frames]->i_type = X264_TYPE_P; // 最后一个一定是P帧
         }
         else if( h->param.i_bframe_adaptive == X264_B_ADAPT_FAST )
         {
