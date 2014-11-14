@@ -407,7 +407,7 @@ int x264_ratecontrol_new( x264_t *h )
         rc->accum_p_qp = ABR_INIT_QP * rc->accum_p_norm;
         /* estimated ratio that produces a reasonable QP for the first I-frame */
         rc->cplxr_sum = .01 * pow( 7.0e5, rc->qcompress ) * pow( h->mb.i_mb_count, 0.5 );
-        rc->wanted_bits_window = 1.0 * rc->bitrate / rc->fps;
+        rc->wanted_bits_window = 1.0 * rc->bitrate / rc->fps; // 编码第一帧需要的比特数
         rc->last_non_b_pict_type = SLICE_TYPE_I;
     }
 
@@ -1236,6 +1236,7 @@ int x264_ratecontrol_end( x264_t *h, int bits )
             rc->cplxr_sum += bits * qp2qscale(rc->qpa_rc) / (rc->last_rceq * fabs(h->param.rc.f_pb_factor));
         }
         rc->cplxr_sum *= rc->cbr_decay;
+		// 更新下一帧需要的比特数
         rc->wanted_bits_window += rc->bitrate / rc->fps;
         rc->wanted_bits_window *= rc->cbr_decay;
     }
@@ -1738,7 +1739,7 @@ static float rate_estimate_qscale( x264_t *h, int overhead )
             {
                 int i_frame_done = h->fenc->i_frame + 1 - h->param.i_threads;
 
-                q = get_qscale( h, &rce, rcc->wanted_bits_window / rcc->cplxr_sum, h->fenc->i_frame );
+                q = get_qscale( h, &rce, rcc->wanted_bits_window / rcc->cplxr_sum, h->fenc->i_frame ); // 根据这一帧需要的比特数计算QP值
 
                 // FIXME is it simpler to keep track of wanted_bits in ratecontrol_end?
                 wanted_bits = i_frame_done * rcc->bitrate / rcc->fps;

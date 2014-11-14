@@ -1021,6 +1021,7 @@ static int x264_nal_end( x264_t *h )
     return 0;
 }
 
+// return total Bytes of all nals.
 static int x264_encoder_encapsulate_nals( x264_t *h )
 {
     int nal_size = 0, i;
@@ -1042,13 +1043,13 @@ static int x264_encoder_encapsulate_nals( x264_t *h )
 
     for( i = 0; i < h->out.i_nal; i++ )
     {
-        int size = x264_nal_encode( nal_buffer, h->param.b_annexb, &h->out.nal[i] );
+        int size = x264_nal_encode( nal_buffer, h->param.b_annexb, &h->out.nal[i] ); // 为NALU加上Annex-B头部
         h->out.nal[i].i_payload = size;
         h->out.nal[i].p_payload = nal_buffer;
         nal_buffer += size;
     }
 
-    return nal_buffer - h->nal_buffer;
+    return nal_buffer - h->nal_buffer; // 返回所有nals的"总字节数"
 }
 
 /****************************************************************************
@@ -1736,9 +1737,8 @@ int     x264_encoder_encode( x264_t *h,
     /* 3: The picture is analyzed in the lookahead */
     if( !h->frames.current[0] )
 	{
-		// 1. 先决定待编码帧的类型(根据GOP决定是否是IDR帧.. 根据Profile决定是B帧还是P帧)
-		// 2. 根据next链表中的待编码帧s(如帧序为BBP, 应先编码P帧), 重排到到current链表
-        x264_lookahead_get_frames( h ); // 流控部分,如果不是X264_RC_CQP: x264_lookahead_get_frames -> x264_slicetype_decide -> x264_slicetype_frame_cost 计算此帧SATD值
+		// x264_lookahead_get_frames --> x264_slicetype_decide --> x264_slicetype_analyse
+        x264_lookahead_get_frames( h ); // 每次只编码一帧
 	}
 
     if( !h->frames.current[0] && x264_lookahead_is_empty( h ) )
@@ -1927,7 +1927,7 @@ static int x264_encoder_frame_end( x264_t *h, x264_t *thread_current,
     *pi_nal = h->out.i_nal;
     *pp_nal = h->out.nal;
 
-    frame_size = x264_encoder_encapsulate_nals( h );
+    frame_size = x264_encoder_encapsulate_nals( h ); // 返回总字节数
 
     h->out.i_nal = 0;
 
@@ -1940,6 +1940,7 @@ static int x264_encoder_frame_end( x264_t *h, x264_t *thread_current,
         pic_out->i_type = X264_TYPE_B;
     pic_out->i_pts = h->fenc->i_pts;
 
+	// 输出的是重建帧
     pic_out->img.i_plane = h->fdec->i_plane;
     for(i = 0; i < 3; i++)
     {

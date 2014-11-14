@@ -256,7 +256,7 @@ void x264_lookahead_get_frames( x264_t *h )
         if( h->frames.current[0] || !h->lookahead->next.i_size )
             return;
 
-        x264_stack_align( x264_slicetype_decide, h ); // 决策此帧的类型
+        x264_stack_align( x264_slicetype_decide, h ); // 决策帧链表的类型
 
         bframes=0;
         while( IS_X264_TYPE_B( h->lookahead->next.list[bframes]->i_type ) )
