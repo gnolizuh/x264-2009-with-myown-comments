@@ -1746,7 +1746,7 @@ static float rate_estimate_qscale( x264_t *h, int overhead )
                 if( wanted_bits > 0 )
                 {
                     abr_buffer *= X264_MAX( 1, sqrt(i_frame_done/25) );
-                    overflow = x264_clip3f( 1.0 + (total_bits - wanted_bits) / abr_buffer, .5, 2 );
+                    overflow = x264_clip3f( 1.0 + (total_bits - wanted_bits) / abr_buffer, .5, 2 ); // 如果超过/不足"平均码率", 那么调整QP值
                     q *= overflow;
                 }
             }
