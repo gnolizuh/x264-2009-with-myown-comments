@@ -7,4 +7,9 @@ x264-2009-with-myown-comments
     # 如果需要调试, 请务必加上--no-asm
     x264 -o test.264 foreman_qcif.yuv 176x144 --no-asm --profile baseline
 
-
+### 侧重点
+    1. 帧类型决策方式
+    2. intra-prediction
+    3. inter-prediction
+    4. rate-control
+    5. 过了一遍transform, quant
