@@ -394,34 +394,34 @@ void x264_mb_predict_mv_ref16x16( x264_t *h, int i_list, int i_ref, int16_t mvc[
     if( h->sh.i_type == SLICE_TYPE_B
         && h->mb.cache.ref[i_list][x264_scan8[12]] == i_ref )
     {
-        SET_MVP( h->mb.cache.mv[i_list][x264_scan8[12]] );
+        SET_MVP( h->mb.cache.mv[i_list][x264_scan8[12]] ); // 取此宏块对应于参考列表list0/list1中左边宏块的MV
     }
 
     if( i_ref == 0 && h->frames.b_have_lowres )
     {
         int16_t (*lowres_mv)[2] = i_list ? h->fenc->lowres_mvs[1][h->fref1[0]->i_frame-h->fenc->i_frame-1]
-                                         : h->fenc->lowres_mvs[0][h->fenc->i_frame-h->fref0[0]->i_frame-1];
-        if( lowres_mv[0][0] != 0x7fff ) *(uint32_t*)mvc[i++] = (*(uint32_t*)lowres_mv[h->mb.i_mb_xy]*2)&0xfffeffff;
+                                         : h->fenc->lowres_mvs[0][h->fenc->i_frame-h->fref0[0]->i_frame-1]; // 前向/后向sub-pixel的MV(包括1/2,1/4)
+        if( lowres_mv[0][0] != 0x7fff ) *(uint32_t*)mvc[i++] = (*(uint32_t*)lowres_mv[h->mb.i_mb_xy]*2)&0xfffeffff; // 这是干嘛??
     }
 
     /* spatial predictors */
     if( h->mb.i_neighbour & MB_LEFT )
     {
-        int i_mb_l = h->mb.i_mb_xy - 1; // 取得LEFT宏块的索引
+        int i_mb_l = h->mb.i_mb_xy - 1; // 取得已编码的LEFT宏块索引
         /* skip MBs didn't go through the whole search process, so mvr is undefined */
         if( !IS_SKIP( h->mb.type[i_mb_l] ) )
-            SET_MVP( mvr[i_mb_l] ); // 保存LEFT宏块在参考帧中引用的对应宏块的MV
+            SET_MVP( mvr[i_mb_l] ); // 取已编码的LEFT宏块的MV
     }
     if( h->mb.i_neighbour & MB_TOP )
     {
-        int i_mb_t = h->mb.i_mb_top_xy;
+        int i_mb_t = h->mb.i_mb_top_xy; // 取得已编码的TOP宏块索引
         if( !IS_SKIP( h->mb.type[i_mb_t] ) )
-            SET_MVP( mvr[i_mb_t] );
+            SET_MVP( mvr[i_mb_t] ); // 取已编码的TOP宏块的MV
 
         if( h->mb.i_neighbour & MB_TOPLEFT && !IS_SKIP( h->mb.type[i_mb_t - 1] ) )
-            SET_MVP( mvr[i_mb_t-1] );
+            SET_MVP( mvr[i_mb_t-1] ); // 取已编码的TOP-LEFT宏块的MV
         if( h->mb.i_mb_x < h->mb.i_mb_stride - 1 && !IS_SKIP( h->mb.type[i_mb_t + 1] ) )
-            SET_MVP( mvr[i_mb_t+1] );
+            SET_MVP( mvr[i_mb_t+1] ); // 取已编码的TOP-RIGHT宏块的MV
     }
 #undef SET_MVP
 
